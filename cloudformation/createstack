@@ -30,6 +30,18 @@ fi
 if [[ "$2" == "destroy" ]]
 then
 	aws cloudformation delete-stack --stack-name "$1"
+	stackID=$(aws cloudformation describe-stacks --stack-name $1 | jq '.[][].StackId' | sed 's/"//g')
+	until aws cloudformation describe-stacks | jq '.[][] | select(.StackId == "$stackID") | .StackStatus' | grep '^$'
+	do
+		sleep 10
+	done
+	echo "Stack deleted"
 else
-	aws cloudformation create-stack --stack-name "$1" --template-body file://${2} --parameters ParameterKey=KeyPair,ParameterValue="$3"
+	stackID=$(aws cloudformation create-stack --stack-name "$1" --template-body file://${2} --parameters ParameterKey=KeyPair,ParameterValue="$3")
+	theID=$(echo "$stackID" | grep StackId | awk '{print $2}' | sed 's/"//g')
+	until aws cloudformation describe-stacks | jq '.[][] | select(.StackId == "$theID") | .StackStatus' | grep CREATE_COMPLETE
+	do
+		sleep 10
+	done
+	echo "Stack completed"
 fi

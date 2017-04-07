@@ -1,0 +1,35 @@
+#!/bin/bash
+
+if (( $# < 3 )) && [[ "$2" != "destroy" ]]
+then
+	echo "SYNTAX: $0 <stackname> <templatefile> <sshKeyName>" 1>&2
+	exit 1
+fi
+
+if [[ ! -e "$2" ]] && [[ "$2" != "destroy" ]]
+then
+	echo "ERROR: Cannot find template file $2" 1>&2
+	exit 2
+fi
+
+if [[ "$2" != "destroy" ]]
+then
+	if aws cloudformation describe-stacks --stack-name "$1" >/dev/null 2>&1
+	then
+		echo "ERROR: The stack name $1 already exists" 1>&2
+		exit 3
+	fi
+
+	if ! aws ec2 describe-key-pairs --key-name "$3" >/dev/null 2>&1
+	then
+		echo "ERROR: Missing PEM key in AWS" 1>&2
+		exit 4
+	fi
+fi
+
+if [[ "$2" == "destroy" ]]
+then
+	aws cloudformation delete-stack --stack-name "$1"
+else
+	aws cloudformation create-stack --stack-name "$1" --template-body file://${2} --parameters ParameterKey=KeyPair,ParameterValue="$3"
+fi

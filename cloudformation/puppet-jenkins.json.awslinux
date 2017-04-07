@@ -1,0 +1,85 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "Create Puppet Master and Jenkins VM",
+	"Parameters": {
+		"KeyPair": {
+			"Description": "SSH key",
+			"Type": "String"
+		}
+	},
+	"Resources": {
+		"Ec2InstancePuppet": {
+			"DependsOn": "sgPuppetJenkins",
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"Tags": [ {"Key": "Name", "Value": "GradsPuppetMaster"}],
+				"ImageId": "ami-f1949e95",
+				"InstanceType": "t2.medium",
+				"KeyName": {
+					"Ref": "KeyPair"
+				},
+				"NetworkInterfaces": [{
+					"AssociatePublicIpAddress": "true",
+					"DeviceIndex": "0",
+					"GroupSet": [{ "Ref": "sgPuppetJenkins" }]
+				}]
+			}
+		},
+		"Ec2InstanceJenkins": {
+			"DependsOn": "sgPuppetJenkins",
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"Tags": [ {"Key": "Name", "Value": "GradsJenkinsMaster"}],
+				"ImageId": "ami-f1949e95",
+				"InstanceType": "t2.medium",
+				"KeyName": {
+					"Ref": "KeyPair"
+				},
+				"NetworkInterfaces": [{
+					"AssociatePublicIpAddress": "true",
+					"DeviceIndex": "0",
+					"GroupSet": [{ "Ref": "sgPuppetJenkins" }]
+				}]
+			}
+		},
+		"sgPuppetJenkins": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"VpcId": "vpc-7738c91e",
+				"GroupDescription": "Internet Puppet Jenkins Access",
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"FromPort": "22",
+					"ToPort": "22",
+					"CidrIp": "0.0.0.0/0"
+				},
+				{
+					"IpProtocol": "tcp",
+					"FromPort": "8080",
+					"ToPort": "8080",
+					"CidrIp": "0.0.0.0/0"
+				},
+				{
+					"IpProtocol": "tcp",
+					"FromPort": "8140",
+					"ToPort": "8140",
+					"CidrIp": "0.0.0.0/0"
+				}]
+			}
+		}
+	},
+	"Outputs": {
+		"PMInstanceId": {
+			"Description": "The ID of the Puppet Master VM",
+			"Value": {
+				"Ref": "Ec2InstancePuppet"
+			}
+		},
+		"JenkinsInstanceId": {
+			"Description": "The ID of the Jenkins VM",
+			"Value": {
+				"Ref": "Ec2InstanceJenkins"
+			}
+		}
+	}
+}

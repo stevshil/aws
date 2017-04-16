@@ -103,6 +103,12 @@
 			"Value": {
 				"Ref": "Ec2InstanceJenkins"
 			}
+		},
+		"ProdInstanceId": {
+			"Description": "The ID of the Prod VM",
+			"Value": {
+				"Ref": "Ec2InstanceProd"
+			}
 		}
 	}
 }

@@ -29,6 +29,7 @@
 			"DependsOn": "sgPuppetJenkins",
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
+				"IamInstanceProfile": "ee_kitchen",
 				"Tags": [ {"Key": "Name", "Value": "GradsJenkinsMaster"}],
 				"ImageId": "ami-9c363cf8",
 				"InstanceType": "t2.medium",

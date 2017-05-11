@@ -1,0 +1,63 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a VM",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "myEc2Instance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": "ami-f1949e95",
+                "InstanceType": "t2.micro",
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+		"UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#!/bin/bash -xv","\n",
+                  "/usr/bin/yum -y install httpd","\n",
+                  "/sbin/service httpd start"
+                ]]}}
+            }
+        },
+        "myEc2Instance2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": "ami-f1949e95",
+                "InstanceType": "t2.micro",
+                "KeyName": {
+                    "Ref": "KeyPair"
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "InstanceId1": {
+            "Description": "The ID of the created VM 1",
+            "Value": {
+                "Ref": "myEc2Instance"
+            }
+        },
+	"InstanceIP1": {
+	    "Description": "IP of Instance 1",
+	    "Value": {
+		"Fn::GetAtt" : [ "myEc2Instance", "PublicIp" ]
+	    }
+	},
+        "InstanceId2": {
+            "Description": "The ID of the created VM 2",
+            "Value": {
+                "Ref": "myEc2Instance2"
+            }
+        },
+	"InstanceIP2": {
+	    "Description": "IP of Instance 2",
+	    "Value": {
+		"Fn::GetAtt" : [ "myEc2Instance2", "PublicIp" ]
+	    }
+	}
+    }
+}

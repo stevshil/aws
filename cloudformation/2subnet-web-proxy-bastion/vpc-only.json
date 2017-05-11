@@ -1,0 +1,183 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "VPC with 2 subnets",
+    "Parameters": {
+        "vpcCidr": {
+            "Description": "VPC CIDR block",
+            "Type": "String",
+            "Default": "10.0.0.0/24"
+        },
+        "PubSubCidr": {
+            "Description": "Public Subnet",
+            "Type": "String",
+            "Default": "10.0.0.0/26"
+        },
+        "PrivSubCidr": {
+            "Description": "Private Subnet",
+            "Type": "String",
+            "Default": "10.0.0.128/26"
+        },
+        "subnetAZ": {
+            "Description": "Subnet AZ",
+            "Type": "AWS::EC2::AvailabilityZone::Name",
+            "Default": "eu-west-2b"
+        },
+	"prefix": {
+	    "Description": "Value to add to front of tags",
+	    "Type": "String",
+            "Default": "STEVE"
+	},
+	"KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+	"Region": {
+	    "Description": "Region",
+	    "Type": "String",
+	    "Default": "eu-west-2"
+	}
+    },
+    "Resources": {
+        "vpc": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": { "Ref": "vpcCidr" },
+                "InstanceTenancy": "default",
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true",
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo VPC"]]}
+                }]
+            }
+        },
+        "publicSubnet": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": ["vpc","attachGateway"],
+            "Properties": {
+                "CidrBlock": { "Ref": "PubSubCidr" },
+                "AvailabilityZone": { "Ref": "subnetAZ" },
+		"MapPublicIpOnLaunch": "true",
+                "VpcId": { "Ref": "vpc" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Public Subnet"]]}
+                }]
+            }
+        },
+        "inetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "DependsOn": ["vpc"],
+            "Properties": {
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Internet Gateway"]]}
+                }]
+            }
+        },
+        "attachGateway": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "DependsOn": ["vpc","inetGateway"],
+            "Properties": {
+                "VpcId": { "Ref": "vpc" },
+                "InternetGatewayId": { "Ref": "inetGateway" }
+            }
+        },
+        "rtbPublic": {
+            "Type": "AWS::EC2::RouteTable",
+            "DependsOn": [ "vpc", "attachGateway" ],
+            "Properties": {
+                "VpcId": { "Ref": "vpc" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Public Routing Table"]]}
+                }]
+            }
+        },
+        "routePublic": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": [ "rtbPublic", "attachGateway" ],
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "RouteTableId": { "Ref": "rtbPublic" },
+                "GatewayId": { "Ref": "inetGateway" }
+            }
+        },
+        "subnetRouteTableAssociationPublic": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": [ "rtbPublic", "publicSubnet" ],
+            "Properties": {
+                "RouteTableId": { "Ref": "rtbPublic" },
+                "SubnetId": { "Ref": "publicSubnet" }
+            }
+        },
+        "privateSubnet": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": ["vpc"],
+            "Properties": {
+                "CidrBlock": { "Ref": "PrivSubCidr" },
+                "AvailabilityZone": { "Ref": "subnetAZ" },
+                "VpcId": { "Ref": "vpc" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Private Subnet"]]}
+                }]
+            }
+        },
+        "rtbPrivate": {
+            "Type": "AWS::EC2::RouteTable",
+            "DependsOn": [ "vpc", "attachGateway" ],
+            "Properties": {
+                "VpcId": { "Ref": "vpc" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Private Routing Table"]]}
+                }]
+            }
+        },
+        "subnetRouteTableAssociationPrivate": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": [ "rtbPrivate", "privateSubnet" ],
+            "Properties": {
+                "RouteTableId": { "Ref": "rtbPrivate" },
+                "SubnetId": { "Ref": "privateSubnet" }
+            }
+        },
+        "NATGW": {
+            "DependsOn": [ "vpc", "privateSubnet", "attachGateway" ],
+            "Type": "AWS::EC2::NatGateway",
+            "Properties": {
+                "AllocationId": { "Fn::GetAtt": ["EIP", "AllocationId"] },
+                "SubnetId": { "Ref": "publicSubnet" }
+            }
+        },
+        "EIP": {
+            "Type": "AWS::EC2::EIP",
+            "Properties": {
+                "Domain": "vpc"
+            }
+        },
+        "NATRouteTableAssociationPrivate": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": { "Ref": "rtbPrivate" },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": { "Ref": "NATGW" }
+            }
+	}
+    },
+    "Outputs": {
+        "VpcId": {
+            "Description": "VPC ID of the new environment",
+            "Value": { "Ref": "vpc" }
+        },
+	"PubSub": {
+	    "Description": "Public Subnet ID",
+	    "Value": { "Ref": "publicSubnet" }
+	},
+	"PrivSub": {
+	    "Description": "Private Subnet ID",
+	    "Value": { "Ref": "privateSubnet" }
+	}
+    }
+}

@@ -1,0 +1,105 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Secure S3 Bucket Demo",
+  "Parameters": {
+    "Prefix": {
+      "Description": "Name to add to TAGS",
+      "Type": "String",
+      "Default": "steve"
+    },
+    "SourceIP": {
+      "Description": "IP address or Cidr allowed access to bucket",
+      "Type": "String",
+      "Default": "10.0.0.128/26"
+    },
+    "BucketName": {
+      "Description": "Name of secure bucket",
+      "Type": "String",
+      "Default": "securebucket"
+    }
+  },
+  "Resources": {
+    "S3AccessRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "ec2.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          }]
+        },
+        "Path": "/"
+      }
+    },
+    "S3RolePolicies": {
+      "Type": "AWS::IAM::Policy",
+      "DependsOn": [ "SecureBucket","S3AccessRole" ],
+      "Properties": {
+        "PolicyName": "s3access",
+        "PolicyDocument": {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource" : {"Fn::Join": [ "", ["arn:aws:s3:::",{"Ref": "Prefix"},"-",{"Ref": "BucketName"},"/*"]]},
+            "Condition": {
+              "IpAddress": {
+                "aws:SourceIp": { "Ref": "SourceIP" }
+              }
+            }
+          }]
+        },
+        "Roles": [{ "Ref": "S3AccessRole" }]
+      }
+    },
+    "S3InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "DependsOn": [ "S3AccessRole" ],
+      "Properties": {
+        "Path": "/",
+        "Roles": [ {"Ref": "S3AccessRole"} ]
+      }
+    },
+    "SecureBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {"Fn::Join": [ "-", [ {"Ref": "Prefix"}, {"Ref":"BucketName"} ]]},
+        "AccessControl": "PublicReadWrite",
+        "Tags": [{
+          "Key": "Name",
+          "Value": {"Fn::Join": [ "-", [ {"Ref": "Prefix"},{"Ref":"BucketName"} ]]}
+        }]
+      }
+    },
+    "SecureBucketPolicyLink": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {"Ref": "SecureBucket"},
+        "PolicyDocument": {
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource" : {"Fn::Join": [ "", ["arn:aws:s3:::",{"Ref": "Prefix"},"-",{"Ref": "BucketName"},"/*"]]},
+            "Principal": "*",
+            "Condition": {
+              "IpAddress": {
+                "aws:SourceIp": { "Ref": "SourceIP" }
+              }
+            }
+          }]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ProfileInstance": {
+      "Description": "Profile Instance for s3",
+      "Value": {"Ref": "S3InstanceProfile"},
+      "Export": {
+        "Name": {"Fn::Join": [ "", [{"Ref": "Prefix"},"-InstProf" ]]}
+      }
+    }
+  }
+}

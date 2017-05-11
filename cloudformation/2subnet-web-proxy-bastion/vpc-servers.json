@@ -1,0 +1,173 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a VM",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+	"PubSub": {
+	    "Description": "Public Subnet ID",
+	    "Type": "String"
+	},
+	"PrivSub": {
+	    "Description": "Private Subnet ID",
+	    "Type": "String"
+	},
+	"VpcCidr": {
+	    "Description": "VPC Subnet Address",
+	    "Type": "String"
+	},
+	"VpcId": {
+	    "Description": "VPC ID",
+	    "Type": "String"
+	},
+        "Prefix": {
+	    "Description": "Prefix name",
+	    "Type": "String",
+            "Default": "steve"
+	}
+    },
+    "Resources": {
+	"PubSecGrp": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+	        "GroupDescription": "Public Network Firewall",
+		"VpcId": { "Ref": "VpcId" },
+	        "SecurityGroupIngress": [{
+	            "IpProtocol": "tcp",
+		    "FromPort": "22",
+		    "ToPort": "22",
+		    "CidrIp": "0.0.0.0/0"
+	        },
+	        {
+	            "IpProtocol": "tcp",
+		    "FromPort": "80",
+		    "ToPort": "80",
+		    "CidrIp": "0.0.0.0/0"
+	        }]
+	    }
+	},
+	"PrivSecGrp": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+	        "GroupDescription": "Private Network Firewall",
+		"VpcId": { "Ref": "VpcId" },
+	        "SecurityGroupIngress": [{
+	            "IpProtocol": "tcp",
+		    "FromPort": "0",
+		    "ToPort": "65535",
+		    "CidrIp": { "Ref": "VpcCidr" }
+	        }]
+	    }
+	},
+        "Bastion": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": "ami-b968bad6",
+                "InstanceType": "t2.micro",
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+		"SubnetId": {"Ref": "PubSub"},
+		"SecurityGroupIds": [{"Ref": "PubSecGrp"}]
+            }
+        },
+        "Proxy": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": "ami-b968bad6",
+                "InstanceType": "t2.micro",
+		"SubnetId": { "Ref": "PubSub" },
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+		"SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+		"UserData": { "Fn::Base64": {"Fn::Join": ["", [
+		  "#!/bin/bash -xve","\n",
+		  "yum -y install nginx","\n",
+		  "sed -i '/server {/,$d' /etc/nginx/nginx.conf","\n",
+		  "echo -e 'server {\n  listen 80;\n  location / {\n    proxy_pass http://",{"Fn::GetAtt": ["Web","PrivateIp"]},"$uri$is_args$args;\n  }\n}\n}\n' >>/etc/nginx/nginx.conf","\n",
+		  "service nginx restart","\n"
+		]]}}
+            }
+        },
+        "Web": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": "ami-b968bad6",
+                "InstanceType": "t2.micro",
+		"SubnetId": { "Ref": "PrivSub" },
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+		"SecurityGroupIds": [{"Ref": "PrivSecGrp"}],
+		"IamInstanceProfile": { "Fn::ImportValue": {"Fn::Join": ["", [{"Ref": "Prefix"},"-InstProf"]]}},
+		"UserData": { "Fn::Base64": {"Fn::Join": ["", [
+		  "#cloud-boothook","\n",
+		  "#!/bin/bash -xve","\n",
+		  "/usr/bin/yum -y install httpd","\n",
+		  "/sbin/service httpd start","\n",
+		  "echo '<h1>Hi Steve - From Steve</h1>' >/var/www/html/index.html","\n"
+		]]}}
+            }
+        },
+	"ProxyDNS": {
+		"Type": "AWS::Route53::RecordSet",
+		"Properties": {
+			"HostedZoneId": "Z2U00Q95U7EKEA",
+			"Comment" : "DNS name for Steves Web Instance.",
+			"Name": "steveweb.grads.al-labs.co.uk",
+			"Type": "A",
+			"TTL": "600",
+			"ResourceRecords" : [
+				{"Fn::GetAtt" : [ "Proxy", "PublicIp" ] }
+			]
+		}
+	}
+    },
+    "Outputs": {
+        "BastionID": {
+            "Description": "The ID of the Bastion",
+            "Value": {
+                "Ref": "Bastion"
+            }
+        },
+	"BastionIP": {
+	    "Description": "IP of Bastion",
+	    "Value": {
+		"Fn::GetAtt" : [ "Bastion", "PublicIp" ]
+	    }
+	},
+        "ProxyID": {
+            "Description": "The ID of the Proxy",
+            "Value": {
+                "Ref": "Proxy"
+            }
+        },
+	"ProxyIP": {
+	    "Description": "Public IP of the Proxy",
+	    "Value": {
+		"Fn::GetAtt" : [ "Proxy", "PublicIp" ]
+	    }
+	},
+	"ProxyPrivIP": {
+	    "Description": "Private IP of the Proxy",
+	    "Value": {
+		"Fn::GetAtt" : [ "Proxy", "PrivateIp" ]
+	    }
+	},
+        "WebID": {
+            "Description": "The ID of the Web",
+            "Value": {
+                "Ref": "Web"
+            }
+        },
+	"WebIP": {
+	    "Description": "IP of the Web Server",
+	    "Value": {
+		"Fn::GetAtt" : [ "Web", "PrivateIp" ]
+	    }
+	}
+    }
+}

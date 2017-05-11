@@ -11,3 +11,5 @@ Requires and IAM Role;
  	AmazonEC2ContainerServiceFullAccess
  	AmazonVPCFullAccess
 	AdministratorAccess
+
+The cloudformation/2subnet-web-proxy-bastion demonstrates the use of AWS templates and secure S3 buckets

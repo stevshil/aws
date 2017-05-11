@@ -1,0 +1,4 @@
+#!/bin/bash
+
+aws cloudformation create-stack --stack-name steveTest --template-body file://ec2instance.json --parameters ParameterKey=KeyPair,ParameterValue=steveshilling
+

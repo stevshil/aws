@@ -43,12 +43,7 @@
           "Statement": [{
             "Effect": "Allow",
             "Action": "s3:*",
-            "Resource" : {"Fn::Join": [ "", ["arn:aws:s3:::",{"Ref": "Prefix"},"-",{"Ref": "BucketName"},"/*"]]},
-            "Condition": {
-              "IpAddress": {
-                "aws:SourceIp": { "Ref": "SourceIP" }
-              }
-            }
+            "Resource" : {"Fn::Join": [ "", ["arn:aws:s3:::",{"Ref": "Prefix"},"-",{"Ref": "BucketName"},"/*"]]}
           }]
         },
         "Roles": [{ "Ref": "S3AccessRole" }]

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+aws cloudformation create-stack --stack-name steveJenkins-Volume --template-body file://ebs.json --parameters ParameterKey=KeyPair,ParameterValue=steveshilling ParameterKey=subnetAZ,ParameterValue=eu-central-1b ParameterKey=instanceId,ParameterValue=i-0b5d9a27420630c16
+

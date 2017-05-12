@@ -1,0 +1,53 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Jenkins VM Volume",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+	"instanceId": {
+	    "Description": "Jenkins Instance ID",
+	    "Type": "String"
+	},
+        "subnetAZ": {
+            "Description": "Subnet AZ",
+            "Type": "AWS::EC2::AvailabilityZone::Name",
+            "Default": "eu-central-1b"
+        },
+        "Prefix": {
+	    "Description": "Prefix name",
+	    "Type": "String",
+            "Default": "steve"
+	}
+    },
+    "Resources": {
+        "JenkinsVolume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "100",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ "", [ {"Ref": "Prefix"},"EBS Volume"]]}
+                }]
+             }
+         },
+         "JenkinsMount": {
+             "Type": "AWS::EC2::VolumeAttachment",
+             "Properties": {
+                 "InstanceId": {"Ref": "instanceId"},
+                 "VolumeId": {"Ref": "JenkinsVolume"},
+                 "Device": "/dev/sdd"
+             }
+         }
+    },
+    "Outputs": {
+	"VolumeId": {
+	    "Description": "Jenkins Volume ID",
+	    "Value": {
+		"Ref": "JenkinsVolume"
+	    }
+	}
+    }
+}

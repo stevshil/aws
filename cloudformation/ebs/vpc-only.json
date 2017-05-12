@@ -1,0 +1,120 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "VPC with 2 subnets",
+    "Parameters": {
+        "vpcCidr": {
+            "Description": "VPC CIDR block",
+            "Type": "String",
+            "Default": "10.0.0.0/24"
+        },
+        "PubSubCidr": {
+            "Description": "Public Subnet",
+            "Type": "String",
+            "Default": "10.0.0.0/26"
+        },
+        "subnetAZ": {
+            "Description": "Subnet AZ",
+            "Type": "AWS::EC2::AvailabilityZone::Name",
+            "Default": "eu-central-1b"
+        },
+	"prefix": {
+	    "Description": "Value to add to front of tags",
+	    "Type": "String",
+            "Default": "steve"
+	},
+	"KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+	"Region": {
+	    "Description": "Region",
+	    "Type": "String",
+	    "Default": "eu-central-1"
+	}
+    },
+    "Resources": {
+        "vpc": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": { "Ref": "vpcCidr" },
+                "InstanceTenancy": "default",
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true",
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo VPC"]]}
+                }]
+            }
+        },
+        "publicSubnet": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": ["vpc","attachGateway"],
+            "Properties": {
+                "CidrBlock": { "Ref": "PubSubCidr" },
+                "AvailabilityZone": { "Ref": "subnetAZ" },
+		"MapPublicIpOnLaunch": "true",
+                "VpcId": { "Ref": "vpc" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Public Subnet"]]}
+                }]
+            }
+        },
+        "inetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "DependsOn": ["vpc"],
+            "Properties": {
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Internet Gateway"]]}
+                }]
+            }
+        },
+        "attachGateway": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "DependsOn": ["vpc","inetGateway"],
+            "Properties": {
+                "VpcId": { "Ref": "vpc" },
+                "InternetGatewayId": { "Ref": "inetGateway" }
+            }
+        },
+        "rtbPublic": {
+            "Type": "AWS::EC2::RouteTable",
+            "DependsOn": [ "vpc", "attachGateway" ],
+            "Properties": {
+                "VpcId": { "Ref": "vpc" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": { "Fn::Join" : [" ", [{"Ref": "prefix"}, "Demo Public Routing Table"]]}
+                }]
+            }
+        },
+        "routePublic": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": [ "rtbPublic", "attachGateway" ],
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "RouteTableId": { "Ref": "rtbPublic" },
+                "GatewayId": { "Ref": "inetGateway" }
+            }
+        },
+        "subnetRouteTableAssociationPublic": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "DependsOn": [ "rtbPublic", "publicSubnet" ],
+            "Properties": {
+                "RouteTableId": { "Ref": "rtbPublic" },
+                "SubnetId": { "Ref": "publicSubnet" }
+            }
+        }
+    },
+    "Outputs": {
+        "VpcId": {
+            "Description": "VPC ID of the new environment",
+            "Value": { "Ref": "vpc" }
+        },
+	"PubSub": {
+	    "Description": "Public Subnet ID",
+	    "Value": { "Ref": "publicSubnet" }
+	}
+    }
+}

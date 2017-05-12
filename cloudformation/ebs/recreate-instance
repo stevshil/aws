@@ -1,0 +1,4 @@
+#!/bin/bash
+
+aws cloudformation create-stack --stack-name steveJenkins-Instance --template-body file://jenkins-existingebs.json --parameters ParameterKey=KeyPair,ParameterValue=steveshilling ParameterKey=PubSub,ParameterValue=subnet-821e78f8 ParameterKey=VpcId,ParameterValue=vpc-0a029d62 ParameterKey=volId,ParameterValue=vol-0213411dbee16cf5f
+

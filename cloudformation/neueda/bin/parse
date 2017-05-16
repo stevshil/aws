@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for x in 0*.json
+do
+	echo "Processing $x"
+	if ! cat ../templates/$x | jq '.' >/dev/null
+	then
+		exit 1
+	fi
+done

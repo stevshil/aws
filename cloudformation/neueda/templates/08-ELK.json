@@ -1,0 +1,168 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create ELK VMs",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "PubSub": {
+            "Description": "Public Subnet ID",
+            "Type": "String"
+        },
+        "VpcId": {
+            "Description": "VPC ID",
+            "Type": "String"
+        },
+        "DNSZoneID": {
+            "Description": "DNS Zone ID",
+            "Type": "String"
+        },
+        "DomainName": {
+            "Description": "Domain Name",
+            "Type": "String"
+        },
+        "PubSecGrp": {
+            "Description": "Public Security Group ID",
+            "Type": "String"
+        },
+        "AMI": {
+            "Description": "AMI to use",
+            "Type": "String",
+            "Default": "ami-b968bad6"
+        },
+        "VMSize": {
+            "Description": "Size of the instance to create",
+            "Type": "String",
+            "Default": "m4.large"
+        },
+        "VolumeID": {
+            "Description": "ELK EBS Volume",
+            "Type": "String"
+        },
+        "Prefix": {
+            "Description": "Prefix name",
+            "Type": "String",
+            "Default": "neueda"
+        }
+    },
+    "Resources": {
+        "ELKInstance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "Volumes": [
+                  {
+                     "VolumeId": {"Ref": "VolumeID"},
+                     "Device": "/dev/xvdd"
+                  }
+                ],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "/usr/bin/yum -y install elk","\n",
+                  "/sbin/service elk start","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"ELK Server"]]}
+                }]
+
+            }
+        },
+        "ELKDNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for ELK 1 server Instance.",
+                "Name": {"Fn::Join": [ ".", ["elk1",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "ELKInstance", "PublicIp" ] }
+                ]
+            }
+        },
+        "ELKInstance2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "/usr/bin/yum -y install elk","\n",
+                  "/sbin/service elk start","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"ELK 2 Server"]]}
+                }]
+
+            }
+        },
+        "ELK2DNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for ELK server 2 Instance.",
+                "Name": {"Fn::Join": [ ".", ["elk2",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "ELKInstance", "PublicIp" ] }
+                ]
+            }
+        }
+
+    },
+    "Outputs": {
+        "ELKID": {
+            "Description": "The ID of the ELK Server",
+            "Value": {
+                "Ref": "ELKInstance"
+            }
+        },
+        "ELKIP": {
+            "Description": "IP of ELK Server",
+            "Value": {
+                "Fn::GetAtt" : [ "ELKInstance", "PublicIp" ]
+            }
+        },
+        "ELKName": {
+            "Description": "ELK DNS Name",
+            "Value": {
+                "Ref": "ELKDNS"
+            }
+        },
+       "ELK2ID": {
+            "Description": "The ID of the ELK 2 Server",
+            "Value": {
+                "Ref": "ELKInstance2"
+            }
+        },
+        "ELK2IP": {
+            "Description": "IP of ELK 2 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "ELKInstance2", "PublicIp" ]
+            }
+        },
+        "ELK2Name": {
+            "Description": "ELK 2 DNS Name",
+            "Value": {
+                "Ref": "ELK2DNS"
+            }
+        }
+    }
+}

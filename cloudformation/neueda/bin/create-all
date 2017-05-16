@@ -1,0 +1,17 @@
+#!/bin/bash
+
+stackName=steveTest
+sshKey=steveshilling
+DNSZoneID=Z2U00Q95U7EKEA
+DNSName=grads.al-labs.co.uk
+
+Script that creates all of the Neueda Docker environment
+./create-vpc ${stackName} ${sshKey}
+./create-ebs ${stackName} ${sshKey}
+./create-teamcity ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}
+./create-db ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}
+./create-git ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}
+./create-docker ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}
+./create-itrs ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}
+./create-elk ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}
+./create-repo ${stackName} ${sshKey} ${DNSZoneID} ${DNSName}

@@ -1,0 +1,193 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create MySQL DB VM",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "PubSub": {
+            "Description": "Public Subnet ID",
+            "Type": "String"
+        },
+        "VpcId": {
+            "Description": "VPC ID",
+            "Type": "String"
+        },
+        "DNSZoneID": {
+            "Description": "DNS Zone ID",
+            "Type": "String"
+        },
+        "DomainName": {
+            "Description": "Domain Name",
+            "Type": "String"
+        },
+        "PubSecGrp": {
+            "Description": "Security Group ID",
+            "Type": "String"
+        },
+        "AMI": {
+            "Description": "AMI to use",
+            "Type": "String",
+            "Default": "ami-b968bad6"
+        },
+        "VMSize": {
+            "Description": "Size of the instance to create",
+            "Type": "String",
+            "Default": "t2.medium"
+        },
+        "DBVol1": {
+            "Description": "DB 1 EBS Volume",
+            "Type": "String"
+        },
+        "DBVol2": {
+            "Description": "DB 2 EBS Volume",
+            "Type": "String"
+        },
+        "TCSSH": {
+            "Description": "IP Address of TeamCity Server",
+            "Type": "String"
+        },
+        "Prefix": {
+            "Description": "Prefix name",
+            "Type": "String",
+            "Default": "neueda"
+        }
+    },
+    "Resources": {
+        "DBInstance1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
+                "Volumes": [
+                  {
+                     "VolumeId": {"Ref": "DBVol1"},
+                     "Device": "/dev/xvdd"
+                  }
+                ],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "if lsblk | grep xvdd","\n",
+                  "then","\n",
+                  "if file -sL /dev/xvdd1 | grep -v filesystem","\n",
+                  "then","\n",
+                  "echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd","\n",
+                  "mkfs -t ext2 /dev/xvdd1","\n",
+                  "echo '/dev/xvdd1  /var/lib/mysql ext2 defaults 1 2' >>/etc/fstab","\n",
+                  "mount /dev/xvdd1","\n",
+                  "fi","\n",
+                  "fi","\n",
+                  "[[ ! -d /var/lib/mysql ]] && mkdir -p /var/lib/mysql","\n",
+                  "/usr/bin/yum -y install mysql-server mysql","\n",
+                  "/sbin/service mysql start","\n",
+                  "chkconfig mysql on","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"Database 1 Server"]]}
+                }]
+
+            }
+        },
+        "DBInstance2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "Volumes": [
+                  {
+                     "VolumeId": {"Ref": "DBVol2"},
+                     "Device": "/dev/xvdd"
+                  }
+                ],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "/usr/bin/yum -y install mysql-server mysql","\n",
+                  "/sbin/service mysql start","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"Database 2 Server"]]}
+                }]
+
+            }
+        },
+        "DB1DNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for MySQL DB 1 Instance.",
+                "Name": {"Fn::Join": [ ".", ["db1",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "DBInstance1", "PublicIp" ] }
+                ]
+            }
+        },
+        "DB2DNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for MySQL DB 2 Instance.",
+                "Name": {"Fn::Join": [ ".", ["db2",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "DBInstance2", "PublicIp" ] }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "DB1ID": {
+            "Description": "The ID of the DB 1 Server",
+            "Value": {
+                "Ref": "DBInstance1"
+            }
+        },
+        "DB1IP": {
+            "Description": "IP of DB 1 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "DBInstance1", "PublicIp" ]
+            }
+        },
+        "DB1Name": {
+            "Description": "DB 1 DNS Name",
+            "Value": {
+                "Ref": "DB1DNS"
+            }
+        },
+        "DB2ID": {
+            "Description": "The ID of the DB 2 Server",
+            "Value": {
+                "Ref": "DBInstance2"
+            }
+        },
+        "DB2IP": {
+            "Description": "IP of DB 2 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "DBInstance2", "PublicIp" ]
+            }
+        },
+        "DB2Name": {
+            "Description": "DB 2 DNS Name",
+            "Value": {
+                "Ref": "DB2DNS"
+            }
+        }
+    }
+}

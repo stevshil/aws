@@ -1,0 +1,101 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create ITRS VM",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "PubSub": {
+            "Description": "Public Subnet ID",
+            "Type": "String"
+        },
+        "VpcId": {
+            "Description": "VPC ID",
+            "Type": "String"
+        },
+        "DNSZoneID": {
+            "Description": "DNS Zone ID",
+            "Type": "String"
+        },
+        "DomainName": {
+            "Description": "Domain Name",
+            "Type": "String"
+        },
+        "PubSecGrp": {
+            "Description": "Security Group ID",
+            "Type": "String"
+        },
+        "AMI": {
+            "Description": "ITRS AMI to use",
+            "Type": "String",
+            "Default": "ami-b8b4f9cb"
+        },
+        "VMSize": {
+            "Description": "Size of the instance to create",
+            "Type": "String",
+            "Default": "t2.medium"
+        },
+        "Prefix": {
+            "Description": "Prefix name",
+            "Type": "String",
+            "Default": "neueda"
+        }
+    },
+    "Resources": {
+        "ITRSInstance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "# Other ITRS configuration","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"ITRS Server"]]}
+                }]
+            }
+        },
+        "ITRSDNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for ITRS Server Instance.",
+                "Name": {"Fn::Join": [ ".", ["itrs",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "ITRSInstance", "PublicIp" ] }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "ITRSID": {
+            "Description": "The ID of the ITRS",
+            "Value": {
+                "Ref": "ITRSInstance"
+            }
+        },
+        "ITRSIP": {
+            "Description": "IP of ITRS Server",
+            "Value": {
+                "Fn::GetAtt" : [ "ITRSInstance", "PublicIp" ]
+            }
+        },
+        "ITRSName": {
+            "Description": "ITRS DNS Name",
+            "Value": {
+                "Ref": "ITRSDNS"
+            }
+        }
+    }
+}

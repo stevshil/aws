@@ -1,0 +1,159 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create TeamCity VM",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "PubSub": {
+            "Description": "Public Subnet ID",
+            "Type": "String"
+        },
+        "VpcId": {
+            "Description": "VPC ID",
+            "Type": "String"
+        },
+        "DNSZoneID": {
+            "Description": "DNS Zone ID",
+            "Type": "String"
+        },
+        "DomainName": {
+            "Description": "Domain Name",
+            "Type": "String"
+        },
+        "PubSecGrp": {
+            "Description": "Public Security Group ID",
+            "Type": "String"
+        },
+        "sshSecGrp": {
+            "Description": "SSH Security Group ID",
+            "Type": "String"
+        },
+        "AMI": {
+            "Description": "AMI to use",
+            "Type": "String",
+            "Default": "ami-b968bad6"
+        },
+        "VMSize": {
+            "Description": "Size of the instance to create",
+            "Type": "String",
+            "Default": "m4.large"
+        },
+        "VolumeID": {
+            "Description": "EBS Volume for instance",
+            "Type": "String"
+        },
+        "Prefix": {
+            "Description": "Prefix name",
+            "Type": "String",
+            "Default": "neueda"
+        }
+    },
+    "Resources": {
+        "TeamCityInstance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"},{"Ref":"sshSecGrp"}],
+                "Volumes": [
+                  {
+                     "VolumeId": {"Ref": "VolumeID"},
+                     "Device": "/dev/xvdd"
+                  }
+                ],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "yum -y erase java-1.7.0-openjdk","\n",
+                  "yum -y install java-1.8.0-openjdk","\n",
+                  "if lsblk | grep xvdd","\n",
+                  "then","\n",
+                  "mkdir /opt/TeamCity","\n",
+                  "if file -sL /dev/xvdd1 | grep -v filesystem","\n",
+                  "then","\n",
+                  "echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd","\n",
+                  "mkfs -t ext2 /dev/xvdd1","\n",
+                  "fi","\n",
+                  "fi","\n",
+                  "mount -t ext2 /dev/xvdd1 /opt/TeamCity","\n",
+                  "cd /tmp","\n",
+                  "[[ ! -d /opt/TeamCity/logs ]] && wget -q https://download.jetbrains.com/teamcity/TeamCity-2017.1.1.tar.gz","\n",
+                  "cd /opt","\n",
+                  "if df -h | grep xvdd1","\n",
+                  "then","\n",
+                  "[[ ! -d /opt/TeamCity/logs ]] && tar xvf /tmp/TeamCity-2017.1.1.tar.gz","\n",
+                  "[[ -e /opt/TeamCity/conf ]] && rm /tmp/TeamCity-2017.1.1.tar.gz || echo 'No tar file'","\n",
+                  "[[ ! -d /opt/TeamCity/logs ]] && mkdir /opt/TeamCity/logs && touch /opt/TeamCity/logs/catalina.out","\n",
+                  "echo 'mount /dev/xvdd1 /opt/TeamCity' >>/etc/rc.local","\n",
+                  "echo '/opt/TeamCity/bin/startup.sh' >>/etc/rc.local","\n",
+                  "/opt/TeamCity/bin/startup.sh","\n",
+                  "fi","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"TeamCity Server"]]}
+                }]
+
+            }
+        },
+        "TeamCityDNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for TeamCity server Instance.",
+                "Name": {"Fn::Join": [ ".", ["teamcity",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "TeamCityInstance", "PublicIp" ] }
+                ]
+            }
+        },
+        "TCSecGrp": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "TeamCity SSH to other nodes",
+                "VpcId": { "Ref": "VpcId" },
+                "SecurityGroupIngress": [{
+                    "IpProtocol": "tcp",
+                    "FromPort": "22",
+                    "ToPort": "22",
+                    "CidrIp": {"Fn::Join": [ "/", [{"Fn::GetAtt": ["TeamCityInstance", "PublicIp"]},"32"]]}
+                }]
+             }
+         }
+
+    },
+    "Outputs": {
+        "TeamCityID": {
+            "Description": "The ID of the TeamCity",
+            "Value": {
+                "Ref": "TeamCityInstance"
+            }
+        },
+        "TeamCityIP": {
+            "Description": "IP of TeamCity",
+            "Value": {
+                "Fn::GetAtt" : [ "TeamCityInstance", "PublicIp" ]
+            }
+        },
+        "TeamCityName": {
+            "Description": "TeamCity DNS Name",
+            "Value": {
+                "Ref": "TeamCityDNS"
+            }
+        },
+        "TCSecGrpID": {
+            "Description": "TC SSH Security Group",
+            "Value": {
+                "Ref": "TCSecGrp"
+            }
+        }
+    }
+}

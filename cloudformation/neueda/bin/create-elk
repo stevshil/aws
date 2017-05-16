@@ -1,0 +1,46 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+	echo "$0 <stackName> <sshKey> <DNS Zone ID> <Domain Name>"
+	exit 1
+fi
+
+stackName=$1
+
+if [[ -n $2 ]]
+then
+	sshKey=$2
+else
+	sshKey=steveshilling
+fi
+
+if [[ -n $3 ]]
+then
+	ZoneID=$3
+else
+	ZoneID=Z2U00Q95U7EKEA
+fi
+
+if [[ -n $4 ]]
+then
+	DNSName="$4"
+else
+	DNSName=grads.al-labs.co.uk
+fi
+
+# Get values of VPC
+PubSub=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stacks[].Outputs[] | select(.OutputKey == "PubSub") | .OutputValue')
+VpcId=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stacks[].Outputs[] | select(.OutputKey == "VpcId") | .OutputValue')
+PubSecGrp=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stacks[].Outputs[] | select(.OutputKey == "PubSecGrpID") | .OutputValue')
+VolumeID=$(aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[] | select(.OutputKey == "ELKVolumeId") | .OutputValue')
+
+aws cloudformation create-stack --stack-name ${stackName}-elk --template-body file://../templates/08-elk.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${ZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID}
+
+until aws cloudformation describe-stacks --stack-name ${stackName}-elk | jq '.Stacks[].Outputs[]' 2>/dev/null
+do
+        echo -n "."
+        sleep 30
+done
+
+aws cloudformation describe-stacks --stack-name ${stackName}-elk | jq '.Stacks[].Outputs[]'

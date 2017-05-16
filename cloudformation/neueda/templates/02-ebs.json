@@ -1,0 +1,160 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "EBS VM Volumes",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "subnetAZ": {
+            "Description": "Subnet AZ",
+            "Type": "AWS::EC2::AvailabilityZone::Name",
+            "Default": "eu-central-1b"
+        },
+        "Prefix": {
+	    "Description": "Prefix name",
+	    "Type": "String",
+            "Default": "neueda"
+	}
+    },
+    "Resources": {
+        "GitVolume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Git Volume"]]}
+                }]
+            }
+        },
+        "JenkinsVolume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Jenkins Volume"]]}
+                }]
+            }
+        },
+        "DockerVolume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Docker Volume"]]}
+                }]
+            }
+        },
+        "Docker2Volume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Docker 2 Volume"]]}
+                }]
+            }
+        },
+        "ELKVolume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS ELK Volume"]]}
+                }]
+            }
+        },
+        "RepoVolume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Repo Volume"]]}
+                }]
+            }
+        },
+        "DB1Volume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS DB 1 Volume"]]}
+                }]
+            }
+        },
+        "DB2Volume": {
+            "Type" : "AWS::EC2::Volume",
+            "Properties": {
+                "Size": "50",
+                "AvailabilityZone" : {"Ref": "subnetAZ"},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS DB 2 Volume"]]}
+                }]
+            }
+        }
+    },
+    "Outputs": {
+	"GitVolumeId": {
+	    "Description": "Git Volume ID",
+	    "Value": {
+		"Ref": "GitVolume"
+	    }
+	},
+	"JenkinsVolumeId": {
+	    "Description": "Jenkins Volume ID",
+	    "Value": {
+		"Ref": "JenkinsVolume"
+	    }
+	},
+	"DockerVolumeId": {
+	    "Description": "Docker Volume ID",
+	    "Value": {
+		"Ref": "DockerVolume"
+	    }
+	},
+	"Docker2VolumeId": {
+	    "Description": "Docker 2 Volume ID",
+	    "Value": {
+		"Ref": "Docker2Volume"
+	    }
+	},
+	"ELKVolumeId": {
+	    "Description": "ELK Volume ID",
+	    "Value": {
+		"Ref": "ELKVolume"
+	    }
+	},
+	"RepoVolumeId": {
+	    "Description": "Repo Volume ID",
+	    "Value": {
+		"Ref": "RepoVolume"
+	    }
+	},
+	"DB1VolumeId": {
+	    "Description": "DB 1 Volume ID",
+	    "Value": {
+		"Ref": "DB1Volume"
+	    }
+	},
+	"DB2VolumeId": {
+	    "Description": "DB 2 Volume ID",
+	    "Value": {
+		"Ref": "DB2Volume"
+	    }
+	}
+    }
+}

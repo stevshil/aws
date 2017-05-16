@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+	# Delete everything
+	for x in $(aws cloudformation describe-stacks | jq '.[][] | .StackName' | sed 's/"//g'| grep neueda)
+	do
+		aws cloudformation delete-stack --stack-name $x
+	done
+else
+	# Delete specific stack
+	aws cloudformation delete-stack --stack-name $1
+fi

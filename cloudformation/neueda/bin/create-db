@@ -1,0 +1,48 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+	echo "$0 <stackName> <sshKey> <DNS Zone ID> <Domain Name>"
+	exit 1
+fi
+
+stackName=$1
+
+if [[ -n $2 ]]
+then
+	sshKey=$2
+else
+	sshKey=steveshilling
+fi
+
+if [[ -n $3 ]]
+then
+	ZoneID=$3
+else
+	ZoneID=Z2U00Q95U7EKEA
+fi
+
+if [[ -n $4 ]]
+then
+	DNSName="$4"
+else
+	DNSName=grads.al-labs.co.uk
+fi
+
+# Get values of VPC
+PubSub=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stacks[].Outputs[] | select(.OutputKey == "PubSub") | .OutputValue')
+VpcId=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stacks[].Outputs[] | select(.OutputKey == "VpcId") | .OutputValue')
+PubSecGrp=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stacks[].Outputs[] | select(.OutputKey == "PubSecGrpID") | .OutputValue')
+VolumeID1=$(aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[] | select(.OutputKey == "DB1VolumeId") | .OutputValue')
+VolumeID2=$(aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[] | select(.OutputKey == "DB2VolumeId") | .OutputValue')
+TCSecGrpID=$(aws cloudformation describe-stacks --stack-name ${stackName}-teamcity | jq '.Stacks[].Outputs[] | select(.OutputKey == "TCSecGrpID") | .OutputValue' | sed 's,"$,/32",')
+
+aws cloudformation create-stack --stack-name ${stackName}-db --template-body file://../templates/04-db.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${ZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=DBVol1,ParameterValue=${VolumeID1} ParameterKey=DBVol2,ParameterValue=${VolumeID2} ParameterKey=TCSecGrp,ParameterValue=${TCSecGrpID}
+
+until aws cloudformation describe-stacks --stack-name ${stackName}-db | jq '.Stacks[].Outputs[]' 2>/dev/null
+do
+	echo -n "."
+	sleep 30
+done
+
+aws cloudformation describe-stacks --stack-name ${stackName}-db | jq '.Stacks[].Outputs[]'

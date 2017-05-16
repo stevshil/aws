@@ -1,0 +1,113 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create Artifactory VMs",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "PubSub": {
+            "Description": "Public Subnet ID",
+            "Type": "String"
+        },
+        "VpcId": {
+            "Description": "VPC ID",
+            "Type": "String"
+        },
+        "DNSZoneID": {
+            "Description": "DNS Zone ID",
+            "Type": "String"
+        },
+        "DomainName": {
+            "Description": "Domain Name",
+            "Type": "String"
+        },
+        "PubSecGrp": {
+            "Description": "Security Group ID",
+            "Type": "String"
+        },
+        "AMI": {
+            "Description": "AMI to use",
+            "Type": "String",
+            "Default": "ami-b968bad6"
+        },
+        "VMSize": {
+            "Description": "Size of the instance to create",
+            "Type": "String",
+            "Default": "t2.micro"
+        },
+        "VolumeID": {
+            "Description": "EBS Volume ID",
+            "Type": "String"
+        },
+        "Prefix": {
+            "Description": "Prefix name",
+            "Type": "String",
+            "Default": "neueda"
+        }
+    },
+    "Resources": {
+        "ArtifactoryInstance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": {"Ref": "VMSize"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+                "SubnetId": {"Ref": "PubSub"},
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "Volumes": [
+                  {
+                     "VolumeId": {"Ref": "VolumeID"},
+                     "Device": "/dev/xvdd"
+                  }
+                ],
+                "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#cloud-boothook","\n",
+                  "#!/bin/bash -xve","\n",
+                  "wget https://bintray.com/jfrog/artifactory-rpms/rpm -O /etc/yum.repos.d/bintray-jfrog-artifactory-rpms.repo","\n",
+                  "yum -y install java-1.8.0-openjdk jfrog-artifactory-oss","\n"
+                ]]}},
+                "Tags": [ {
+                    "Key": "Name",
+                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"Artifactory Server"]]}
+                }]
+
+            }
+        },
+        "ArtifactoryDNS": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "HostedZoneId": {"Ref": "DNSZoneID"},
+                "Comment" : "DNS name for Artifactory server Instance.",
+                "Name": {"Fn::Join": [ ".", ["repo",{"Ref": "DomainName"}]]},
+                "Type": "A",
+                "TTL": "600",
+                "ResourceRecords" : [
+                    {"Fn::GetAtt" : [ "ArtifactoryInstance", "PublicIp" ] }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "ArtifactoryID": {
+            "Description": "The ID of the Artifactory Server",
+            "Value": {
+                "Ref": "ArtifactoryInstance"
+            }
+        },
+        "ArtifactoryIP": {
+            "Description": "IP of Artifactory Server",
+            "Value": {
+                "Fn::GetAtt" : [ "ArtifactoryInstance", "PublicIp" ]
+            }
+        },
+        "ArtifactoryName": {
+            "Description": "Artifactory DNS Name",
+            "Value": {
+                "Ref": "ArtifactoryDNS"
+            }
+        }
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a VM",
+    "Parameters": {
+	    "AZ": {
+	      "Description": "AZ",
+	      "Type": "String"
+	    },
+	    "PubSecGrp": {
+	        "Description": "DB Security Group ID",
+	        "Type": "String"
+	    }
+  },
+  "Resources": {
+    "DBSecGrp": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription": "Open database for access",
+        "SecurityGroupIngress" : [{
+          "IpProtocol" : "tcp",
+          "FromPort" : "3306",
+          "ToPort" : "3306",
+          "SourceSecurityGroupName" : { "Ref" : "PubSecGrp" }
+          }]
+        }
+      },
+	  "DBInstance": {
+	    "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBInstanceClass": "db.t2.micro",
+        "AllocatedStorage" : "5",
+        "MasterUsername" : "master",
+        "MasterUserPassword" : "SecretPassword01",
+        "DBName": "steveDB",
+        "Engine": "mysql",
+        "VPCSecurityGroups": [{"Ref":"DBSecGrp"}]
+      }
+    }
+  }
+}

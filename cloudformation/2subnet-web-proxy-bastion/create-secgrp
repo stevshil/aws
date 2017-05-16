@@ -1,0 +1,8 @@
+#!/bin/bash
+
+vpcid=vpc-47d12c3e
+vpccidr="10.0.0.0/24"
+privsub=subnet-33dc657b
+pubsub=subnet-c9dc6581
+
+aws cloudformation create-stack --stack-name steveVM-secgrp --template-body file://secgrp.json --parameters ParameterKey=KeyPair,ParameterValue=steveshilling ParameterKey=PubSub,ParameterValue=${pubsub} ParameterKey=PrivSub,ParameterValue=${privsub} ParameterKey=VpcCidr,ParameterValue=${vpccidr} ParameterKey=VpcId,ParameterValue=${vpcid}

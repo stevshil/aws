@@ -70,30 +70,22 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
+                  "cd /tmp","\n",
                   "yum -y erase java-1.7.0-openjdk","\n",
                   "yum -y install java-1.8.0-openjdk","\n",
-                  "if lsblk | grep xvdd","\n",
-                  "then","\n",
-                  "mkdir /opt/TeamCity","\n",
-                  "if file -sL /dev/xvdd1 | grep -v filesystem","\n",
-                  "then","\n",
-                  "echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd","\n",
-                  "mkfs -t ext2 /dev/xvdd1","\n",
-                  "fi","\n",
-                  "fi","\n",
-                  "mount -t ext2 /dev/xvdd1 /opt/TeamCity","\n",
+                  "(lsblk | grep xvdd) && mkdir /opt/TeamCity; sleep 10","\n",
+                  "[[ ! -d /opt/TeamCity/DATA ]] && mkdir /opt/TeamCity/DATA; sleep 10","\n",
+                  "cd /root && ln -s /opt/TeamCity/DATA .BuildServer; sleep 10","\n",
+                  "(file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                  "mount -t ext3 /dev/xvdd1 /opt/TeamCity && sleep 10","\n",
                   "cd /tmp","\n",
                   "[[ ! -d /opt/TeamCity/logs ]] && wget -q https://download.jetbrains.com/teamcity/TeamCity-2017.1.1.tar.gz","\n",
-                  "cd /opt","\n",
-                  "if df -h | grep xvdd1","\n",
-                  "then","\n",
-                  "[[ ! -d /opt/TeamCity/logs ]] && tar xvf /tmp/TeamCity-2017.1.1.tar.gz","\n",
-                  "[[ -e /opt/TeamCity/conf ]] && rm /tmp/TeamCity-2017.1.1.tar.gz || echo 'No tar file'","\n",
-                  "[[ ! -d /opt/TeamCity/logs ]] && mkdir /opt/TeamCity/logs && touch /opt/TeamCity/logs/catalina.out","\n",
-                  "echo 'mount /dev/xvdd1 /opt/TeamCity' >>/etc/rc.local","\n",
-                  "echo '/opt/TeamCity/bin/startup.sh' >>/etc/rc.local","\n",
-                  "/opt/TeamCity/bin/startup.sh","\n",
-                  "fi","\n"
+                  "cd /opt && sleep 10","\n",
+                  "(df -h | grep xvdd1) && ([[ ! -d /opt/TeamCity/logs ]] && tar xvf /tmp/TeamCity-2017.1.1.tar.gz) && [[ -e /opt/TeamCity/conf ]] && rm /tmp/TeamCity-2017.1.1.tar.gz","\n",
+                  "grep -v TeamCity /etc/rc.local && echo 'mount -t ext3 /dev/xvdd1 /opt/TeamCity' >>/etc/rc.local","\n",
+                  "grep -v startup.sh /etc/rc.local && echo '/opt/TeamCity/bin/startup.sh' >>/etc/rc.local","\n",
+                  "mkdir /opt/TeamCity/logs && touch /opt/TeamCity/logs/catalina.out","\n",
+                  "sleep 10; [[ -e /opt/TeamCity/bin/startup.sh ]] && /opt/TeamCity/bin/startup.sh"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -124,7 +116,7 @@
                     "IpProtocol": "tcp",
                     "FromPort": "22",
                     "ToPort": "22",
-                    "CidrIp": {"Fn::Join": [ "/", [{"Fn::GetAtt": ["TeamCityInstance", "PublicIp"]},"32"]]}
+                    "CidrIp": {"Fn::Join": [ "/", [{"Fn::GetAtt": ["TeamCityInstance", "PrivateIp"]},"32"]]}
                 }]
              }
          }

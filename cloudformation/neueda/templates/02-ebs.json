@@ -40,28 +40,6 @@
                 }]
             }
         },
-        "DockerVolume": {
-            "Type" : "AWS::EC2::Volume",
-            "Properties": {
-                "Size": "50",
-                "AvailabilityZone" : {"Ref": "subnetAZ"},
-                "Tags": [ {
-                    "Key": "Name",
-                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Docker Volume"]]}
-                }]
-            }
-        },
-        "Docker2Volume": {
-            "Type" : "AWS::EC2::Volume",
-            "Properties": {
-                "Size": "50",
-                "AvailabilityZone" : {"Ref": "subnetAZ"},
-                "Tags": [ {
-                    "Key": "Name",
-                    "Value": {"Fn::Join": [ " ", [ {"Ref": "Prefix"},"EBS Docker 2 Volume"]]}
-                }]
-            }
-        },
         "ELKVolume": {
             "Type" : "AWS::EC2::Volume",
             "Properties": {

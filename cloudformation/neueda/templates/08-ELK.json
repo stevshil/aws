@@ -40,6 +40,10 @@
             "Description": "ELK EBS Volume",
             "Type": "String"
         },
+        "TCSecGrp": {
+            "Description": "IP Address of TeamCity Server",
+            "Type": "String"
+        },
         "Prefix": {
             "Description": "Prefix name",
             "Type": "String",
@@ -56,7 +60,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "VolumeID"},
@@ -66,8 +70,19 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
-                  "/usr/bin/yum -y install elk","\n",
-                  "/sbin/service elk start","\n"
+                  "mkdir /var/lib/elasticsearch || echo '/var/lib/elasticsearch already exists'; sleep 10","\n",
+                  "yum -y erase java-1.7.0-openjdk","\n",
+                  "yum -y install java-1.8.0-openjdk","\n",
+                  "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                  "sleep 10 && mount -t ext3 /dev/xvdd1 /var/lib/elasticsearch && sleep 10","\n",
+                  "yum -y install https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.4.0.rpm","\n",
+                  "yum -y install https://artifacts.elastic.co/downloads/kibana/kibana-5.4.0-x86_64.rpm","\n",
+                  "echo 'server.host: \"0.0.0.0\"' >>/etc/kibana/kibana.yml","\n",
+                  "chkconfig elasticsearch on","\n",
+                  "chkconfig kibana on","\n",
+                  "service elasticsearch start","\n",
+                  "service kibana start","\n",
+                  "grep -v elasticsearch /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/lib/elasticsearch\n' >>/etc/rc.local","\n"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -98,12 +113,23 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
-                  "/usr/bin/yum -y install elk","\n",
-                  "/sbin/service elk start","\n"
+                  "mkdir /var/lib/elasticsearch || echo '/var/lib/elasticsearch already exists'; sleep 10","\n",
+                  "yum -y erase java-1.7.0-openjdk","\n",
+                  "yum -y install java-1.8.0-openjdk","\n",
+                  "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                  "sleep 10 && mount -t ext3 /dev/xvdd1 /var/lib/elasticsearch && sleep 10","\n",
+                  "yum -y install https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.4.0.rpm","\n",
+                  "yum -y install https://artifacts.elastic.co/downloads/kibana/kibana-5.4.0-x86_64.rpm","\n",
+                  "echo 'server.host: \"0.0.0.0\"' >>/etc/kibana/kibana.yml","\n",
+                  "chkconfig elasticsearch on","\n",
+                  "chkconfig kibana on","\n",
+                  "service elasticsearch start","\n",
+                  "service kibana start","\n",
+                  "grep -v elasticsearch /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/lib/elasticsearch\n' >>/etc/rc.local","\n"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -140,6 +166,12 @@
                 "Fn::GetAtt" : [ "ELKInstance", "PublicIp" ]
             }
         },
+        "ELKPrivIP": {
+            "Description": "Private IP of ELK Server",
+            "Value": {
+                "Fn::GetAtt" : [ "ELKInstance", "PrivateIp" ]
+            }
+        },
         "ELKName": {
             "Description": "ELK DNS Name",
             "Value": {
@@ -156,6 +188,12 @@
             "Description": "IP of ELK 2 Server",
             "Value": {
                 "Fn::GetAtt" : [ "ELKInstance2", "PublicIp" ]
+            }
+        },
+        "ELK2PrivIP": {
+            "Description": "Private IP of ELK 2 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "ELKInstance2", "PrivateIp" ]
             }
         },
         "ELK2Name": {

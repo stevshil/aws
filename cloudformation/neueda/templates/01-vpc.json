@@ -52,7 +52,7 @@
             "Properties": {
                 "CidrBlock": { "Ref": "PubSubCidr" },
                 "AvailabilityZone": { "Ref": "subnetAZ" },
-		"MapPublicIpOnLaunch": "true",
+		            "MapPublicIpOnLaunch": "true",
                 "VpcId": { "Ref": "vpc" },
                 "Tags": [{
                     "Key": "Name",
@@ -119,6 +119,12 @@
                 },
                 {
                     "IpProtocol": "tcp",
+                    "FromPort": "5601",
+                    "ToPort": "5601",
+                    "CidrIp": "0.0.0.0/0"
+                },
+                {
+                    "IpProtocol": "tcp",
                     "FromPort": "8111",
                     "ToPort": "8111",
                     "CidrIp": "0.0.0.0/0"
@@ -150,10 +156,10 @@
             "Description": "VPC ID of the new environment",
             "Value": { "Ref": "vpc" }
         },
-	"PubSub": {
-	    "Description": "Public Subnet ID",
-	    "Value": { "Ref": "publicSubnet" }
-	},
+      	"PubSub": {
+	          "Description": "Public Subnet ID",
+	          "Value": { "Ref": "publicSubnet" }
+	      },
         "PubSecGrpID": {
             "Description": "Public Firewall Rule",
             "Value": {"Ref": "PubSecGrp"}

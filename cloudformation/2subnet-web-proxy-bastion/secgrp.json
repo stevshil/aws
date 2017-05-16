@@ -1,0 +1,88 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Create a VM",
+  "Parameters": {
+    "KeyPair": {
+      "Description": "SSH key",
+      "Type": "String"
+    },
+    "PubSub": {
+      "Description": "Public Subnet ID",
+      "Type": "String"
+    },
+    "PrivSub": {
+      "Description": "Private Subnet ID",
+      "Type": "String"
+    },
+    "VpcCidr": {
+      "Description": "VPC Subnet Address",
+      "Type": "String"
+    },
+    "VpcId": {
+      "Description": "VPC ID",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "PubSecGrp": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Public Network Firewall",
+        "VpcId": { "Ref": "VpcId" },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "22",
+          "ToPort": "22",
+          "CidrIp": "0.0.0.0/0"
+          }]
+        }
+      },
+      "PrivSecGrp": {
+        "Type": "AWS::EC2::SecurityGroup",
+        "Properties": {
+          "GroupDescription": "Private Network Firewall",
+          "VpcId": { "Ref": "VpcId" },
+          "SecurityGroupIngress": [{
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": { "Ref": "VpcCidr" }
+            }]
+          }
+        },
+          "Bastion": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+              "ImageId": "ami-c58c1dd3",
+              "InstanceType": "t2.micro",
+              "KeyName": {
+                "Ref": "KeyPair"
+              },
+              "SubnetId": {"Ref": "PubSub"},
+              "SecurityGroupIds": [{"Ref": "PubSecGrp"}]
+            }
+          }
+        },
+        "Outputs": {
+          "BastionID": {
+            "Description": "The ID of the Bastion",
+            "Value": {
+              "Ref": "Bastion"
+            }
+          },
+          "BastionIP": {
+            "Description": "IP of Bastion",
+            "Value": {
+              "Fn::GetAtt" : [ "Bastion", "PublicIp" ]
+            }
+          },
+          "PubSecGrp": {
+            "Description": "Public Sec Grp",
+            "Value": {"Ref": "PubSecGrp" }
+          },
+          "PrivSecGrp": {
+            "Description": "Private Sec Grp",
+            "Value": {"Ref": "PrivSecGrp" }
+          }
+        }
+      }

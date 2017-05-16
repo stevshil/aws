@@ -44,7 +44,7 @@
             "Description": "DB 2 EBS Volume",
             "Type": "String"
         },
-        "TCSSH": {
+        "TCSecGrp": {
             "Description": "IP Address of TeamCity Server",
             "Type": "String"
         },
@@ -74,20 +74,12 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
-                  "if lsblk | grep xvdd","\n",
-                  "then","\n",
-                  "if file -sL /dev/xvdd1 | grep -v filesystem","\n",
-                  "then","\n",
-                  "echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd","\n",
-                  "mkfs -t ext2 /dev/xvdd1","\n",
-                  "echo '/dev/xvdd1  /var/lib/mysql ext2 defaults 1 2' >>/etc/fstab","\n",
-                  "mount /dev/xvdd1","\n",
-                  "fi","\n",
-                  "fi","\n",
-                  "[[ ! -d /var/lib/mysql ]] && mkdir -p /var/lib/mysql","\n",
-                  "/usr/bin/yum -y install mysql-server mysql","\n",
-                  "/sbin/service mysql start","\n",
-                  "chkconfig mysql on","\n"
+                  "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                  "[[ ! -d /var/lib/mysql ]] && mkdir /var/lib/mysql","\n",
+                  "sleep 10 && mount -t ext3 /dev/xvdd1 /var/lib/mysql && sleep 10","\n",
+                  "grep -v mysql /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/lib/mysql\nservice mysqld start' >>/etc/rc.local","\n",
+                  "/usr/bin/yum -y install mysql-server mysql; sleep 10","\n",
+                  "service mysqld start","\n"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -105,7 +97,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "DBVol2"},
@@ -115,8 +107,12 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
-                  "/usr/bin/yum -y install mysql-server mysql","\n",
-                  "/sbin/service mysql start","\n"
+                  "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                  "[[ ! -d /var/lib/mysql ]] && mkdir /var/lib/mysql","\n",
+                  "sleep 10 && mount -t ext3 /dev/xvdd1 /var/lib/mysql && sleep 10","\n",
+                  "grep -v mysql /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/lib/mysql\nservice mysqld start' >>/etc/rc.local","\n",
+                  "/usr/bin/yum -y install mysql-server mysql; sleep 10","\n",
+                  "service mysqld start","\n"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -159,10 +155,16 @@
                 "Ref": "DBInstance1"
             }
         },
-        "DB1IP": {
+        "DB1PubIP": {
             "Description": "IP of DB 1 Server",
             "Value": {
                 "Fn::GetAtt" : [ "DBInstance1", "PublicIp" ]
+            }
+        },
+        "DB1PrivIP": {
+            "Description": "Private IP of DB 1 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "DBInstance1", "PrivateIp" ]
             }
         },
         "DB1Name": {
@@ -177,10 +179,16 @@
                 "Ref": "DBInstance2"
             }
         },
-        "DB2IP": {
+        "DB2PubIP": {
             "Description": "IP of DB 2 Server",
             "Value": {
                 "Fn::GetAtt" : [ "DBInstance2", "PublicIp" ]
+            }
+        },
+        "DB2PrivIP": {
+            "Description": "Private IP of DB 2 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "DBInstance2", "PrivateIp" ]
             }
         },
         "DB2Name": {

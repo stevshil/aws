@@ -1,0 +1,68 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a Proxy",
+    "Parameters": {
+        "KeyPair": {
+            "Description": "SSH key",
+            "Type": "String"
+        },
+        "AMI": {
+            "Description": "AMI to use",
+            "Type": "String",
+            "Default": "ami-f1949e95"
+        },
+        "vpc": {
+            "Description": "Default VPC ID",
+            "Type": "String"
+        },
+        "SubnetID": {
+            "Description": "Public Subnet",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "SecGrp": {
+           "Type": "AWS::EC2::SecurityGroup",
+           "Properties": {
+               "GroupDescription": "TeamCity SSH to other nodes",
+               "VpcId": { "Ref": "vpc" },
+               "SecurityGroupIngress": [{
+                   "IpProtocol": "tcp",
+                   "FromPort": "0",
+                   "ToPort": "65535",
+                   "CidrIp": "0.0.0.0/0"
+               }]
+            }
+        },
+        "aProxy": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {"Ref": "AMI"},
+                "InstanceType": "t2.micro",
+                "SecurityGroupIds": [{"Ref": "SecGrp"}],
+                "SubnetId": {"Ref": "SubnetID"},
+                "KeyName": {
+                    "Ref": "KeyPair"
+                },
+		            "UserData": { "Fn::Base64": {"Fn::Join": ["", [
+                  "#!/bin/bash -xv","\n",
+                  "/usr/bin/yum -y install tinyproxy","\n"
+                ]]}}
+            }
+        }
+    },
+    "Outputs": {
+        "InstanceId1": {
+            "Description": "The ID of the created VM 1",
+            "Value": {
+                "Ref": "aProxy"
+            }
+        },
+	"InstanceIP1": {
+	    "Description": "IP of Instance 1",
+	    "Value": {
+		"Fn::GetAtt" : [ "aProxy", "PublicIp" ]
+	    }
+	}
+    }
+}

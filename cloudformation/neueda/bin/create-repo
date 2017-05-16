@@ -1,30 +1,31 @@
 #!/bin/bash
 
-if (( $# < 1 ))
+if (( $# < 2 ))
 then
-	echo "$0 <stackName> <sshKey> <DNS Zone ID> <Domain Name>"
+	echo "$0 <create|update> <stackName> <sshKey> <DNS Zone ID> <Domain Name>"
 	exit 1
 fi
 
-stackName=$1
+action=$1
+stackName=$2
 
-if [[ -n $2 ]]
+if [[ -n $3 ]]
 then
-	sshKey=$2
+	sshKey=$3
 else
 	sshKey=steveshilling
 fi
 
-if [[ -n $3 ]]
+if [[ -n $4 ]]
 then
-	ZoneID=$3
+	ZoneID=$4
 else
 	ZoneID=Z2U00Q95U7EKEA
 fi
 
-if [[ -n $4 ]]
+if [[ -n $5 ]]
 then
-	DNSName="$4"
+	DNSName="$5"
 else
 	DNSName=grads.al-labs.co.uk
 fi
@@ -35,5 +36,12 @@ VpcId=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.Stac
 PubSecGrp=$(aws cloudformation describe-stacks --stack-name ${stackName}-jenkins | jq '.Stacks[].Outputs[] | select(.OutputKey == "PubSecGrpID") | .OutputValue')
 VolumeID=$(aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[] | select(.OutputKey == "RepoVolumeId") | .OutputValue')
 
-aws cloudformation create-stack --stack-name ${stackName}-artifactory --template-body file://../templates/09-artifactory.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${ZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID}
+aws cloudformation ${action}-stack --stack-name ${stackName}-artifactory --template-body file://../templates/09-artifactory.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${ZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID}
 
+until aws cloudformation describe-stacks --stack-name ${stackName}-repo | jq '.Stacks[].Outputs[]' 2>/dev/null
+do
+        echo -n "."
+        sleep 30
+done
+
+aws cloudformation describe-stacks --stack-name ${stackName}-repo | jq '.Stacks[].Outputs[]'

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for x in 0*.json
+for x in ../templates/*.json
 do
 	echo "Processing $x"
 	if ! cat ../templates/$x | jq '.' >/dev/null

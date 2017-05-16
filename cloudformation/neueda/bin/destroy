@@ -1,9 +1,9 @@
 #!/bin/bash
 
-if (( $# < 1 ))
+if [[ $1 == 'all' ]]
 then
 	# Delete everything
-	for x in $(aws cloudformation describe-stacks | jq '.[][] | .StackName' | sed 's/"//g'| grep neueda)
+	for x in repo itrs git elk docker db teamcity ebs vpc
 	do
 		aws cloudformation delete-stack --stack-name $x
 	done

@@ -40,6 +40,10 @@
             "Description": "EBS Volume ID",
             "Type": "String"
         },
+        "TCSecGrp": {
+            "Description": "IP Address of TeamCity Server",
+            "Type": "String"
+        },
         "Prefix": {
             "Description": "Prefix name",
             "Type": "String",
@@ -56,7 +60,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "VolumeID"},
@@ -68,8 +72,13 @@
                   "#!/bin/bash -xve","\n",
                   "/usr/bin/yum -y install sharutils http://download1.rpmfusion.org/free/el/updates/6/i386/rpmfusion-free-release-6-1.noarch.rpm http://download1.rpmfusion.org/nonfree/el/updates/6/i386/rpmfusion-nonfree-release-6-1.noarch.rpm","\n",
                   "curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | sudo bash","\n",
+                  "mkdir /var/opt/gitlab || echo '/var/opt/gitlab already exists'; sleep 10","\n",
+                  "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                  "sleep 10 && mount -t ext3 /dev/xvdd1 /var/opt/gitlab && sleep 10","\n",
                   "yum -y install gitlab-ce","\n",
-                  "#gitlab-ctl reconfigure","\n"
+                  "gitlab-ctl reconfigure; sleep 10","\n",
+                  "gitlab-ctl restart; sleep 10","\n",
+                  "grep -v gitlab /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/opt/gitlab\ngitlab-ctl start' >>/etc/rc.local","\n"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -102,6 +111,12 @@
             "Description": "IP of Git Server",
             "Value": {
                 "Fn::GetAtt" : [ "GitInstance", "PublicIp" ]
+            }
+        },
+        "GitPrivateIP": {
+            "Description": "Private IP of Git Server",
+            "Value": {
+                "Fn::GetAtt" : [ "GitInstance", "PrivateIp" ]
             }
         },
         "GitName": {

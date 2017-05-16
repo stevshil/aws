@@ -2,31 +2,32 @@
 
 # AMI with TeamCity already ami-78106a0b
 
-if (( $# < 1 ))
+if (( $# < 2 ))
 then
-	echo "$0 <stackName> <sshKey> <DNS Zone ID> <Domain Name>"
+	echo "$0 <create|update> <stackName> <sshKey> <DNS Zone ID> <Domain Name>"
 	exit 1
 fi
 
-stackName=$1
+action=$1
+stackName=$2
 
-if [[ -n $2 ]]
+if [[ -n $3 ]]
 then
-	sshKey=$2
+	sshKey=$3
 else
 	sshKey=steveshilling
 fi
 
-if [[ -n $3 ]]
+if [[ -n $4 ]]
 then
-	DNSZoneID=$3
+	DNSZoneID=$4
 else
 	DNSZoneID=Z2U00Q95U7EKEA
 fi
 
-if [[ -n $4 ]]
+if [[ -n $5 ]]
 then
-	DNSName=$4
+	DNSName=$5
 else
 	DNSName="grads.al-labs.co.uk"
 fi
@@ -39,7 +40,7 @@ sshSecGrp=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.
 VolumeID=$(aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[] | select(.OutputKey == "JenkinsVolumeId") | .OutputValue')
 
 
-aws cloudformation create-stack --stack-name ${stackName}-teamcity --template-body file://../templates/03-teamcity.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${DNSZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=sshSecGrp,ParameterValue=${sshSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID}
+aws cloudformation ${action}-stack --stack-name ${stackName}-teamcity --template-body file://../templates/03-teamcity.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${DNSZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=sshSecGrp,ParameterValue=${sshSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID}
 
 until aws cloudformation describe-stacks --stack-name ${stackName}-teamcity | jq '.Stacks[].Outputs[]' 2>/dev/null
 do

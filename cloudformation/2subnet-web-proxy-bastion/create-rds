@@ -1,0 +1,6 @@
+#!/bin/bash
+
+AZ=us-east-1b
+PubSecGrp=sg-915724ef
+
+aws cloudformation create-stack --stack-name steveVM-rds --template-body file://rds.json --parameters ParameterKey=AZ,ParameterValue=${AZ} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp}

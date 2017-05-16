@@ -1,0 +1,4 @@
+defaultVPC=$(aws ec2 describe-vpcs | jq '.Vpcs[] | select (.Tags | length == 0) .VpcId')
+publicSubnet=$(aws ec2 describe-subnets | jq '.Subnets[] | select (.VpcId == "vpc-ed6ab384" and .MapPublicIpOnLaunch == true) .CidrBlock' | tail -1)
+
+aws cloudformation create-stack --stack-name tp --template-body file://tinyproxy.json --parameters ParameterKey=KeyPair,ParameterValue=steveshilling ParameterKey=vpc,ParameterValue=${defaultVPC} ParameterKey=SubnetID,ParameterValue=${publicSubnet}

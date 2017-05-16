@@ -36,12 +36,8 @@
             "Type": "String",
             "Default": "m4.large"
         },
-        "VolumeID1": {
-            "Description": "Docker EBS Volume 1",
-            "Type": "String"
-        },
-        "VolumeID2": {
-            "Description": "Docker EBS Volume 2",
+        "TCSecGrp": {
+            "Description": "IP Address of TeamCity Server",
             "Type": "String"
         },
         "Prefix": {
@@ -60,17 +56,12 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
-                "Volumes": [
-                  {
-                     "VolumeId": {"Ref": "VolumeID1"},
-                     "Device": "/dev/xvdd"
-                  }
-                ],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
                   "/usr/bin/yum -y install docker","\n",
+                  "sed -i 's/\\(docker.*\\)/\\1ec2-user/' /etc/group","\n",
                   "/sbin/service docker start","\n"
                 ]]}},
                 "Tags": [ {
@@ -102,17 +93,12 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
-                "Volumes": [
-                  {
-                     "VolumeId": {"Ref": "VolumeID2"},
-                     "Device": "/dev/xvdd"
-                  }
-                ],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
                   "/usr/bin/yum -y install docker","\n",
+                  "sed -i 's/\\(docker.*\\)/\\1ec2-user/' /etc/group","\n",
                   "/sbin/service docker start","\n"
                 ]]}},
                 "Tags": [ {
@@ -150,6 +136,12 @@
                 "Fn::GetAtt" : [ "DockerInstance", "PublicIp" ]
             }
         },
+        "DockerPrivIP": {
+            "Description": "Private IP of Docker Server",
+            "Value": {
+                "Fn::GetAtt" : [ "DockerInstance", "PrivateIp" ]
+            }
+        },
         "DockerName": {
             "Description": "Docker DNS Name",
             "Value": {
@@ -166,6 +158,12 @@
             "Description": "IP of Docker 2 Server",
             "Value": {
                 "Fn::GetAtt" : [ "DockerInstance2", "PublicIp" ]
+            }
+        },
+        "Docker2PrivIP": {
+            "Description": "Private IP of Docker 2 Server",
+            "Value": {
+                "Fn::GetAtt" : [ "DockerInstance2", "PrivateIp" ]
             }
         },
         "Docker2Name": {

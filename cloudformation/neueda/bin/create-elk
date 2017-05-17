@@ -8,6 +8,28 @@ fi
 
 action=$1
 stackName=$2
+prefix=pipeline
+
+region=$(awk -F= '/^region/ {gsub(" ",""); print $2}' $HOME/.aws/config)
+if [[ -z $region ]]
+then
+	echo "Please ensure your region is set in $HOME/.aws/config"
+	exit 1
+fi
+
+case $region in
+	'eu-central-1') AMI="ami-b968bad6"
+									;;
+	'eu-west-2')		AMI='ami-b6daced2'
+									;;
+	'eu-west-1')		AMI='ami-01ccc867'
+									;;
+	'us-east-1')		AMI='ami-c58c1dd3'
+									;;
+	*)							echo "Please set your region to one of (eu-central-1, eu-west-1, eu-west-2, us-east-1)"
+									exit 1
+									;;
+esac
 
 if [[ -n $3 ]]
 then
@@ -37,7 +59,7 @@ PubSecGrp=$(aws cloudformation describe-stacks --stack-name ${stackName} | jq '.
 VolumeID=$(aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[] | select(.OutputKey == "ELKVolumeId") | .OutputValue')
 TCSecGrpID=$(aws cloudformation describe-stacks --stack-name ${stackName}-teamcity | jq '.Stacks[].Outputs[] | select(.OutputKey == "TCSecGrpID") | .OutputValue')
 
-aws cloudformation ${action}-stack --stack-name ${stackName}-elk --template-body file://../templates/08-ELK.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${ZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID} ParameterKey=TCSecGrp,ParameterValue=${TCSecGrpID}
+aws cloudformation ${action}-stack --stack-name ${stackName}-elk --template-body file://../templates/08-ELK.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=PubSub,ParameterValue=${PubSub} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${ZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=PubSecGrp,ParameterValue=${PubSecGrp} ParameterKey=VolumeID,ParameterValue=${VolumeID} ParameterKey=TCSecGrp,ParameterValue=${TCSecGrpID} ParameterKey=AMI,ParameterValue=${AMI} ParameterKey=Prefix,ParameterValue=${prefix}
 
 until aws cloudformation describe-stacks --stack-name ${stackName}-elk | jq '.Stacks[].Outputs[]' 2>/dev/null
 do

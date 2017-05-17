@@ -3,11 +3,26 @@
 if [[ $1 == 'all' ]]
 then
 	# Delete everything
-	for x in repo itrs git elk docker db teamcity ebs vpc
+	if (( $# < 2 ))
+	then
+		echo "Missing stack prefix name"
+		exit 1
+	fi
+	for x in repo itrs git elk docker db teamcity ebs
 	do
-		aws cloudformation delete-stack --stack-name $x
+		echo "Deleting stack $2-$x"
+		aws cloudformation delete-stack --stack-name $2-$x
 	done
+	# Delete the VPC
+	echo "Deleting stack $2"
+	aws cloudformation delete-stack --stack-name $2
 else
 	# Delete specific stack
+	if [[ -z $1 ]]
+	then
+		echo "Missing stack name"
+		exit 1
+	fi
+	echo "About to delete stack $1"
 	aws cloudformation delete-stack --stack-name $1
 fi

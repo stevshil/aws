@@ -98,18 +98,6 @@
 		"Ref": "JenkinsVolume"
 	    }
 	},
-	"DockerVolumeId": {
-	    "Description": "Docker Volume ID",
-	    "Value": {
-		"Ref": "DockerVolume"
-	    }
-	},
-	"Docker2VolumeId": {
-	    "Description": "Docker 2 Volume ID",
-	    "Value": {
-		"Ref": "Docker2Volume"
-	    }
-	},
 	"ELKVolumeId": {
 	    "Description": "ELK Volume ID",
 	    "Value": {

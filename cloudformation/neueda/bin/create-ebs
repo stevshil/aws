@@ -8,6 +8,7 @@ fi
 
 action=$1
 stackName=$2
+prefix=pipeline
 
 if [[ -n "$3" ]]
 then
@@ -16,9 +17,16 @@ else
 	keyName=steveshilling
 fi
 
-region=$(awk -F"=" '/^region/ {gsub(/ /, "");print $2}' ~/.aws/config)
+region=$(awk -F= '/^region/ {gsub(" ",""); print $2}' $HOME/.aws/config)
+if [[ -z $region ]]
+then
+	echo "Please ensure your region is set in $HOME/.aws/config"
+	exit 1
+fi
 
-aws cloudformation ${action}-stack --stack-name ${stackName}-ebs --template-body file://../templates/02-ebs.json --parameters ParameterKey=KeyPair,ParameterValue=${keyName} ParameterKey=subnetAZ,ParameterValue=${region}b
+set -x
+aws cloudformation ${action}-stack --stack-name ${stackName}-ebs --template-body file://../templates/02-ebs.json --parameters ParameterKey=KeyPair,ParameterValue=${keyName} ParameterKey=subnetAZ,ParameterValue=${region}b ParameterKey=Prefix,ParameterValue=${prefix}
+set +x
 
 until aws cloudformation describe-stacks --stack-name ${stackName}-ebs | jq '.Stacks[].Outputs[]' 2>/dev/null
 do

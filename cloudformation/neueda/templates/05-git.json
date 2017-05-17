@@ -44,6 +44,10 @@
             "Description": "IP Address of TeamCity Server",
             "Type": "String"
         },
+        "privAccess": {
+            "Description": "Private Subnet Access",
+            "Type": "String"
+        },
         "Prefix": {
             "Description": "Prefix name",
             "Type": "String",
@@ -60,7 +64,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}, {"Ref":"privAccess"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "VolumeID"},
@@ -70,6 +74,7 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
+                  "while [[ ! -b /dev/xvdd ]]; do sleep 5; done","\n",
                   "/usr/bin/yum -y install sharutils http://download1.rpmfusion.org/free/el/updates/6/i386/rpmfusion-free-release-6-1.noarch.rpm http://download1.rpmfusion.org/nonfree/el/updates/6/i386/rpmfusion-nonfree-release-6-1.noarch.rpm","\n",
                   "curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | sudo bash","\n",
                   "mkdir /var/opt/gitlab || echo '/var/opt/gitlab already exists'; sleep 10","\n",

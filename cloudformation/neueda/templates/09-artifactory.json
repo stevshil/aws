@@ -40,6 +40,10 @@
             "Description": "EBS Volume ID",
             "Type": "String"
         },
+        "privAccess": {
+            "Description": "Private Subnet Access",
+            "Type": "String"
+        },
         "Prefix": {
             "Description": "Prefix name",
             "Type": "String",
@@ -56,7 +60,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}, {"Ref":"privAccess"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "VolumeID"},

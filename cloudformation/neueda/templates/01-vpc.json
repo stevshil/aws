@@ -119,6 +119,12 @@
                 },
                 {
                     "IpProtocol": "tcp",
+                    "FromPort": "3306",
+                    "ToPort": "3306",
+                    "CidrIp": "0.0.0.0/0"
+                },
+                {
+                    "IpProtocol": "tcp",
                     "FromPort": "5601",
                     "ToPort": "5601",
                     "CidrIp": "0.0.0.0/0"
@@ -136,6 +142,19 @@
                     "CidrIp": "0.0.0.0/0"
                 }]
              }
+        },
+        "privateSubAccess": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Private Subnet Access",
+                "VpcId": { "Ref": "vpc" },
+                "SecurityGroupIngress": [{
+                    "IpProtocol": "tcp",
+                    "FromPort": "1",
+                    "ToPort": "65535",
+                    "CidrIp": {"Ref":"vpcCidr"}
+                }]
+            }
         },
         "sshSecGrp": {
             "Type": "AWS::EC2::SecurityGroup",
@@ -167,6 +186,10 @@
         "sshSecGrpID": {
             "Description": "SSH Firewall Rule",
             "Value": {"Ref": "sshSecGrp"}
+        },
+        "privateSubAccessID": {
+            "Description": "Private Subnet Access",
+            "Value": {"Ref": "privateSubAccess"}
         }
     }
 }

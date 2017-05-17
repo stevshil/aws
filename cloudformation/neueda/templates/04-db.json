@@ -26,6 +26,10 @@
             "Description": "Security Group ID",
             "Type": "String"
         },
+        "privAccess": {
+            "Description": "Private Subnet Access",
+            "Type": "String"
+        },
         "AMI": {
             "Description": "AMI to use",
             "Type": "String",
@@ -64,7 +68,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}, {"Ref":"privAccess"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "DBVol1"},
@@ -74,12 +78,21 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
+                  "while [[ ! -b /dev/xvdd ]]; do sleep 5; done","\n",
                   "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
                   "[[ ! -d /var/lib/mysql ]] && mkdir /var/lib/mysql","\n",
                   "sleep 10 && mount -t ext3 /dev/xvdd1 /var/lib/mysql && sleep 10","\n",
                   "grep -v mysql /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/lib/mysql\nservice mysqld start' >>/etc/rc.local","\n",
-                  "/usr/bin/yum -y install mysql-server mysql; sleep 10","\n",
-                  "service mysqld start","\n"
+                  "/usr/bin/yum -y install mysql56-server mysql56; sleep 10","\n",
+                  "service mysqld start","\n",
+                  "sleep 20","\n",
+                  "mysql -uroot -e \"GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'secret123';\"","\n",
+                  "cd /tmp && wget http://archive.apache.org/dist/activemq/5.14.5/apache-activemq-5.14.5-bin.tar.gz","\n",
+                  "cd /opt","\n",
+                  "mkdir /opt/activemq || echo '/opt/activemq already exists'","\n",
+                  "tar xvf /tmp/http://archive.apache.org/dist/activemq/5.14.5/apache-activemq-5.14.5-bin.tar.gz --strip-component=1 -C /opt/activemq","\n",
+                  "grep -v activemq /etc/rc.local && echo -e '/opt/activemq/bin/activemq start' >>/etc/rc.local","\n",
+                  "/opt/activemq/bin/activemq start"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",
@@ -97,7 +110,7 @@
                     "Ref": "KeyPair"
                 },
                 "SubnetId": {"Ref": "PubSub"},
-                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}],
+                "SecurityGroupIds": [{"Ref": "PubSecGrp"}, {"Ref": "TCSecGrp"}, {"Ref":"privAccess"}],
                 "Volumes": [
                   {
                      "VolumeId": {"Ref": "DBVol2"},
@@ -107,12 +120,21 @@
                 "UserData": { "Fn::Base64": {"Fn::Join": ["", [
                   "#cloud-boothook","\n",
                   "#!/bin/bash -xve","\n",
+                  "while [[ ! -b /dev/xvdd ]]; do sleep 5; done","\n",
                   "(lsblk | grep xvdd) && (file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && sleep 10 && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
                   "[[ ! -d /var/lib/mysql ]] && mkdir /var/lib/mysql","\n",
                   "sleep 10 && mount -t ext3 /dev/xvdd1 /var/lib/mysql && sleep 10","\n",
                   "grep -v mysql /etc/rc.local && echo -e 'mount -t ext3 /dev/xvdd1 /var/lib/mysql\nservice mysqld start' >>/etc/rc.local","\n",
-                  "/usr/bin/yum -y install mysql-server mysql; sleep 10","\n",
-                  "service mysqld start","\n"
+                  "/usr/bin/yum -y install mysql56-server mysql56; sleep 10","\n",
+                  "service mysqld start","\n",
+                  "sleep 20","\n",
+                  "mysql -uroot -e \"GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'secret123';\"","\n",
+                  "cd /tmp && wget http://archive.apache.org/dist/activemq/5.14.5/apache-activemq-5.14.5-bin.tar.gz","\n",
+                  "cd /opt","\n",
+                  "mkdir /opt/activemq || echo '/opt/activemq already exists'","\n",
+                  "tar xvf /tmp/http://archive.apache.org/dist/activemq/5.14.5/apache-activemq-5.14.5-bin.tar.gz --strip-component=1 -C /opt/activemq","\n",
+                  "grep -v activemq /etc/rc.local && echo -e '/opt/activemq/bin/activemq start' >>/etc/rc.local","\n",
+                  "/opt/activemq/bin/activemq start"
                 ]]}},
                 "Tags": [ {
                     "Key": "Name",

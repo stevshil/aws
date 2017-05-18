@@ -3,12 +3,13 @@
 # AMI with TeamCity already ami-78106a0b
 if (( $# < 2 ))
 then
-  echo "$0 <action> <stackName>"
+  echo "$0 <action> <stackName> [noebs]"
   exit 1
 fi
 
 action=$1
 stackName=$2
+ebs="-$3"
 prefix="pipeline"
 VMSize="m4.large"
 VpcId="vpc-ed6ab384"
@@ -32,7 +33,7 @@ case $region in
 esac
 
 set -x
-aws cloudformation ${action}-stack --stack-name ${stackName}-teamcity-standalone --template-body file://../templates/teamcity-standalone.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${DNSZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=AMI,ParameterValue=${AMI} ParameterKey=Prefix,ParameterValue=${Prefix} ParameterKey=subnetAZ,ParameterValue=${region}b ParameterKey=VMSize,ParameterValue=${VMSize}
+aws cloudformation ${action}-stack --stack-name ${stackName}-teamcity-standalone --template-body file://../templates/teamcity-standalone${ebs}.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${DNSZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=AMI,ParameterValue=${AMI} ParameterKey=Prefix,ParameterValue=${Prefix} ParameterKey=subnetAZ,ParameterValue=${region}b ParameterKey=VMSize,ParameterValue=${VMSize}
 set +x
 
 until aws cloudformation describe-stacks --stack-name ${stackName}-teamcity-standalone | jq '.Stacks[].Outputs[]' 2>/dev/null

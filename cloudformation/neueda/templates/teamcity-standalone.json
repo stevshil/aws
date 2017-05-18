@@ -1,0 +1,252 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Create TeamCity VM",
+  "Parameters": {
+    "KeyPair": {
+      "Description": "SSH key",
+      "Type": "String"
+    },
+    "VpcId": {
+      "Description": "VPC ID",
+      "Type": "String"
+    },
+    "subnetAZ": {
+      "Description": "AvailabilityZone for the EBS",
+      "Type": "String"
+    },
+    "DNSZoneID": {
+      "Description": "DNS Zone ID",
+      "Type": "String"
+    },
+    "DomainName": {
+      "Description": "Domain Name",
+      "Type": "String"
+    },
+    "AMI": {
+      "Description": "AMI to use",
+      "Type": "String",
+      "Default": "ami-b968bad6"
+    },
+    "VMSize": {
+      "Description": "Size of the instance to create",
+      "Type": "String",
+      "Default": "m4.large"
+    },
+    "Prefix": {
+      "Description": "Prefix name",
+      "Type": "String",
+      "Default": "neueda"
+    }
+  },
+  "Resources": {
+    "PubSecGrp": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "TeamCity SSH to other nodes",
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8111",
+            "ToPort": "8111",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "TeamCityVolume": {
+      "Type": "AWS::EC2::Volume",
+      "Properties": {
+        "Size": "50",
+        "AvailabilityZone": {
+          "Ref": "subnetAZ"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  {
+                    "Ref": "Prefix"
+                  },
+                  "EBS Jenkins Volume"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "TeamCityInstance": {
+      "DependsOn": [
+        "TeamCityVolume",
+        "PubSecGrp"
+      ],
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {
+          "Ref": "AMI"
+        },
+        "InstanceType": {
+          "Ref": "VMSize"
+        },
+        "KeyName": {
+          "Ref": "KeyPair"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "PubSecGrp"
+          }
+        ],
+        "Volumes": [
+          {
+            "VolumeId": {
+              "Ref": "TeamCityVolume"
+            },
+            "Device": "/dev/xvdd"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#cloud-boothook","\n",
+                "#!/bin/bash -xve","\n",
+                "cd /tmp","\n",
+                "yum -y erase java-1.7.0-openjdk","\n",
+                "yum -y install java-1.8.0-openjdk java-1.8.0-openjdk-devel.x86_64 docker","\n",
+                "cd /tmp","\n",
+                "[[ ! -d /opt/maven ]] && wget http://mirrors.gigenet.com/apache/maven/maven-3/3.5.0/binaries/apache-maven-3.5.0-bin.tar.gz","\n",
+                "cd /opt","\n",
+                "mkdir /opt/maven || echo '/opt/maven already exists'","\n",
+                "[[ -e /tmp/apache-maven-3.5.0-bin.tar.gz ]] && tar zxvf /tmp/apache-maven-3.5.0-bin.tar.gz -C /opt/maven --strip-component=1","\n",
+                "[[ -e /tmp/apache-maven-3.5.0-bin.tar.gz ]] && rm /tmp/apache-maven-3.5.0-bin.tar.gz","\n",
+                "grep M2_HOME /etc/profile || echo -e 'export M2_HOME=/opt/maven\nexport M2=$M2_HOME/bin\nPATH=$M2:$PATH\n' >>/etc/profile","\n",
+                "while [[ ! -b /dev/xvdd ]]; do sleep 5; done","\n",
+                "(lsblk | grep xvdd) && mkdir -p /opt/TeamCity; sleep 10","\n",
+                "(file -sL /dev/xvdd1 | grep -v filesystem) && (echo -e 'n\np\n1\n\n\nw\nq\n' | fdisk /dev/xvdd) && mkfs -t ext3 /dev/xvdd1 && sleep 10","\n",
+                "mount -t ext3 /dev/xvdd1 /opt/TeamCity && sleep 10","\n",
+                "cd /tmp","\n",
+                "[[ ! -d /opt/TeamCity/logs ]] && wget -q https://download.jetbrains.com/teamcity/TeamCity-2017.1.1.tar.gz","\n",
+                "cd /opt && sleep 10","\n",
+                "(df -h | grep xvdd1) && ([[ ! -d /opt/TeamCity/logs ]] && tar xvf /tmp/TeamCity-2017.1.1.tar.gz) && [[ -e /opt/TeamCity/conf ]] && rm /tmp/TeamCity-2017.1.1.tar.gz","\n",
+                "((df -h | grep xvdd1) && mkdir -p /opt/TeamCity/DATA) || echo '/opt/TeamCity/DATA already exists'","\n",
+                "sleep 10; cd /root && ln -s /opt/TeamCity/DATA .BuildServer","\n",
+                "sleep 10; grep -v TeamCity /etc/rc.local && echo 'mount -t ext3 /dev/xvdd1 /opt/TeamCity' >>/etc/rc.local","\n",
+                "grep -v startup.sh /etc/rc.local && echo '/opt/TeamCity/bin/startup.sh\n/opt/TeamCity/buildAgent/bin/agent.sh start' >>/etc/rc.local","\n",
+                "mkdir /opt/TeamCity/logs && touch /opt/TeamCity/logs/catalina.out","\n",
+                "sleep 10; [[ -e /opt/TeamCity/bin/startup.sh ]] && /opt/TeamCity/bin/startup.sh","\n",
+                "sleep 20; /opt/TeamCity/buildAgent/bin/agent.sh start","\n",
+                "/usr/bin/yum -y install docker","\n",
+                "sed -i 's/\\(docker.*\\)/\\1ec2-user/' /etc/group","\n",
+                "chkconfig docker on","\n",
+                "/sbin/service docker start","\n"
+              ]
+            ]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  {
+                    "Ref": "Prefix"
+                  },
+                  "TeamCity Server"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "TeamCityDNS": {
+      "DependsOn": [
+        "TeamCityInstance"
+      ],
+      "Type": "AWS::Route53::RecordSet",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "DNSZoneID"
+        },
+        "Comment": "DNS name for TeamCity server Instance.",
+        "Name": {
+          "Fn::Join": [
+            ".",
+            [
+              "teamcity",
+              {
+                "Ref": "DomainName"
+              }
+            ]
+          ]
+        },
+        "Type": "A",
+        "TTL": "600",
+        "ResourceRecords": [
+          {
+            "Fn::GetAtt": [
+              "TeamCityInstance",
+              "PublicIp"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "Vpc": {
+      "Description": "VPC ID",
+      "Value": {
+        "Ref": "VpcId"
+      }
+    },
+    "TeamCityID": {
+      "Description": "The ID of the TeamCity",
+      "Value": {
+        "Ref": "TeamCityInstance"
+      }
+    },
+    "TeamCityIP": {
+      "Description": "IP of TeamCity",
+      "Value": {
+        "Fn::GetAtt": [
+          "TeamCityInstance",
+          "PublicIp"
+        ]
+      }
+    },
+    "TeamCityName": {
+      "Description": "TeamCity DNS Name",
+      "Value": {
+        "Ref": "TeamCityDNS"
+      }
+    },
+    "TeamCityVolumeID": {
+      "Description": "TeamCity EBS Volume ID",
+      "Value": {
+        "Ref": "TeamCityVolume"
+      }
+    },
+    "PubSecGrp": {
+      "Description": "Security Group",
+      "Value": {
+        "Ref": "PubSecGrp"
+      }
+    }
+  }
+}

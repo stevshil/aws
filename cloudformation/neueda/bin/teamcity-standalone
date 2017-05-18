@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# AMI with TeamCity already ami-78106a0b
+if (( $# < 2 ))
+then
+  echo "$0 <action> <stackName>"
+  exit 1
+fi
+
+action=$1
+stackName=$2
+prefix="pipeline"
+VMSize="m4.large"
+VpcId="vpc-ed6ab384"
+sshKey=steveshilling
+DNSZoneID=Z2U00Q95U7EKEA
+DNSName="grads.al-labs.co.uk"
+region=$(awk -F= '/^region/ {gsub(" ",""); print $2}' $HOME/.aws/config)
+
+case $region in
+	'eu-central-1') AMI="ami-b968bad6"
+									;;
+	'eu-west-2')		AMI='ami-b6daced2'
+									;;
+	'eu-west-1')		AMI='ami-01ccc867'
+									;;
+	'us-east-1')		AMI='ami-c58c1dd3'
+									;;
+	*)							echo "Please set your region to one of (eu-central-1, eu-west-1, eu-west-2, us-east-1)"
+									exit 1
+									;;
+esac
+
+set -x
+aws cloudformation ${action}-stack --stack-name ${stackName}-teamcity-standalone --template-body file://../templates/teamcity-standalone.json --parameters ParameterKey=KeyPair,ParameterValue=${sshKey} ParameterKey=VpcId,ParameterValue=${VpcId} ParameterKey=DNSZoneID,ParameterValue=${DNSZoneID} ParameterKey=DomainName,ParameterValue=${DNSName} ParameterKey=AMI,ParameterValue=${AMI} ParameterKey=Prefix,ParameterValue=${Prefix} ParameterKey=subnetAZ,ParameterValue=${region}b ParameterKey=VMSize,ParameterValue=${VMSize}
+set +x
+
+until aws cloudformation describe-stacks --stack-name ${stackName}-teamcity-standalone | jq '.Stacks[].Outputs[]' 2>/dev/null
+do
+	echo -n "."
+	sleep 30
+done
+
+aws cloudformation describe-stacks --stack-name ${stackName}-teamcity-standalone | jq '.Stacks[].Outputs[]'

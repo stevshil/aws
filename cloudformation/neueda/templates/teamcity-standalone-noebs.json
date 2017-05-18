@@ -62,31 +62,6 @@
         ]
       }
     },
-    "TeamCityVolume": {
-      "Type": "AWS::EC2::Volume",
-      "Properties": {
-        "Size": "50",
-        "AvailabilityZone": {
-          "Ref": "subnetAZ"
-        },
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": {
-              "Fn::Join": [
-                " ",
-                [
-                  {
-                    "Ref": "Prefix"
-                  },
-                  "EBS Jenkins Volume"
-                ]
-              ]
-            }
-          }
-        ]
-      }
-    },
     "TeamCityInstance": {
       "DependsOn": [
         "TeamCityVolume",
@@ -106,14 +81,6 @@
         "SecurityGroupIds": [
           {
             "Ref": "PubSecGrp"
-          }
-        ],
-        "Volumes": [
-          {
-            "VolumeId": {
-              "Ref": "TeamCityVolume"
-            },
-            "Device": "/dev/xvdd"
           }
         ],
         "UserData": {
@@ -234,12 +201,6 @@
       "Description": "TeamCity DNS Name",
       "Value": {
         "Ref": "TeamCityDNS"
-      }
-    },
-    "TeamCityVolumeID": {
-      "Description": "TeamCity EBS Volume ID",
-      "Value": {
-        "Ref": "TeamCityVolume"
       }
     },
     "PubSecGrp": {

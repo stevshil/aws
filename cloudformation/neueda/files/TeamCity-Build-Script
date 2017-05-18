@@ -1,0 +1,26 @@
+#!/bin/bash
+
+cd /tmp
+yum -y erase java-1.7.0-openjdk
+yum -y install java-1.8.0-openjdk java-1.8.0-openjdk-devel.x86_64 docker mysql56
+cd /tmp
+[[ ! -d /opt/maven ]] && wget http://mirrors.gigenet.com/apache/maven/maven-3/3.5.0/binaries/apache-maven-3.5.0-bin.tar.gz
+cd /opt
+mkdir /opt/maven || echo '/opt/maven already exists'
+[[ -e /tmp/apache-maven-3.5.0-bin.tar.gz ]] && tar zxvf /tmp/apache-maven-3.5.0-bin.tar.gz -C /opt/maven --strip-component=1
+[[ -e /tmp/apache-maven-3.5.0-bin.tar.gz ]] && rm /tmp/apache-maven-3.5.0-bin.tar.gz
+grep M2_HOME /etc/profile || echo -e 'export M2_HOME=/opt/maven\nexport M2=$M2_HOME/bin\nPATH=$M2:$PATH\n' >>/etc/profile
+cd /tmp
+[[ ! -d /opt/TeamCity/logs ]] && wget -q https://download.jetbrains.com/teamcity/TeamCity-2017.1.1.tar.gz
+cd /opt
+[[ ! -d /opt/TeamCity/logs ]] && tar xvf /tmp/TeamCity-2017.1.1.tar.gz && [[ -e /opt/TeamCity/conf ]] && rm /tmp/TeamCity-2017.1.1.tar.gz
+[[ ! -d /opt/TeamCity/DATA ]] && mkdir -p /opt/TeamCity/DATA
+cd /root && ln -s /opt/TeamCity/DATA .BuildServer
+grep -v startup.sh /etc/rc.local && echo '/opt/TeamCity/bin/startup.sh\n/opt/TeamCity/buildAgent/bin/agent.sh start' >>/etc/rc.local
+mkdir /opt/TeamCity/logs && touch /opt/TeamCity/logs/catalina.out
+[[ -e /opt/TeamCity/bin/startup.sh ]] && /opt/TeamCity/bin/startup.sh
+/opt/TeamCity/buildAgent/bin/agent.sh start
+/usr/bin/yum -y install docker
+sed -i 's/\\(docker.*\\)/\\1ec2-user/' /etc/group
+chkconfig docker on
+/sbin/service docker start

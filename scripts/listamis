@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+        echo "SYNTAX: $0 ownerID" 1>&2
+        exit 1
+fi
+
+ownerid=$1
+
+for region in $(cat regions | awk -F',' '{print $1}')
+do
+	name=$(grep $region regions | awk -F',' {'print $2}')
+	echo "AMIs in $name"
+	aws ec2 describe-images --owner ${ownerid} --region $region | jq '.Images[] | ["ID: "+.ImageId,"Name: "+.Name,"Creation: "+.CreationDate,"VirtType: "+.VirtualizationType,"Description: "+.Description,"Snapshot: "+.BlockDeviceMappings[].Ebs.SnapshotId]'
+done

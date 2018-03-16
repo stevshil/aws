@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+	echo "SYNTAX: $0 ownerID" 1>&2
+	exit 1
+fi
+
+ownerid=$1
+
+for region in $(cat regions | awk -F',' '{print $1}')
+do
+	name=$(grep $region regions | awk -F',' {'print $2}')
+	echo "AMIs in $name"
+
+	aws ec2 describe-snapshots --owner ${ownerid} --region $region | jq '.Snapshots[] | [.SnapshotId,.Description,.VolumeId]'
+
+done

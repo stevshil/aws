@@ -1,0 +1,88 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+        echo "SYNTAX: $0 ownerID" 1>&2
+        exit 1
+fi
+
+ownerid=$1
+
+select regions in $(cat regions | awk -F',' '{print $1}')
+do
+	region=$regions
+	break
+done
+
+name=$(grep $region regions | awk -F',' {'print $2}')
+
+echo "Getting snapshot list"
+snapshots=$(aws ec2 describe-snapshots --owner ${ownerid} --region $region | jq '.Snapshots[] | .SnapshotId' | sed 's/"//g')
+echo "Getting snapshot data"
+allSnapshotData=$(aws ec2 describe-snapshots --owner ${ownerid} --region $region | jq '.Snapshots[] | .SnapshotId+" - "+.Description+" - "+.StartTime')
+echo "Getting EC2 instance list"
+allEC2=$(aws ec2 describe-instances --region $region | jq '.Reservations[].Instances[].InstanceId')
+echo "Getting AMI specific information"
+amis=$(aws ec2 describe-images --owner ${ownerid} --region $region | jq '.Images[] | .ImageId+" - "+.BlockDeviceMappings[].Ebs.SnapshotId' | sed 's/"//g')
+
+echo "Region: $name"
+
+foundcount=0
+totalcount=0
+orphan=0
+for snap in $snapshots
+do
+	((totalcount=totalcount+1))
+	if echo "$amis" | grep "$snap" >/dev/null 2>&1
+	then
+		((foundcount=foundcount+1))
+		continue
+	else
+		((orphan=orphan+1))
+		#echo "${snap}:" | sed 's/"//g'
+		data=$(echo "$allSnapshotData" | grep $snap)
+		ami=$(echo "$data" | grep -o 'ami-[0-9a-z][0-9a-z]* ')
+		ec2=$(echo "$data" | grep -o '\(i-.*\)' | sed 's/[()]//g')
+
+		echo "$data" | sed 's/"//g'
+		snaps="$snap $snaps"
+		if ! echo "$amis" | grep $ami >/dev/null 2>&1
+		then
+			echo -e "\tAMI does not exist"
+		fi
+		if ! echo "$allEC2" | grep $ec2 >/dev/null 2>&1
+		then
+			echo -e "\tEC2 Instance does not exist"
+		fi
+	fi
+done
+
+echo "Snapshots with AMIs = $foundcount"
+echo "Orphaned Snapshots  = $orphan"
+echo "Total Snapshots     = $totalcount"
+
+if (( $orphan == 0 )) 
+then
+	exit 0
+fi
+
+echo -e "\n\n"
+echo "$snaps"
+echo -n "Do you wish to remove these snapshots (y/n)? "
+read removal
+if [[ $removal == n* ]]
+then
+	exit 0
+fi
+
+# Removing snapshots
+for snap in $snaps
+do
+#	echo -n "Delete $snap (y/n)? "
+#	read del
+#	if [[ $del == y* ]]
+#	then
+		echo "Deleting snapshot $snap"
+		aws ec2 delete-snapshot --snapshot-id $snap --region $region
+#	fi
+done

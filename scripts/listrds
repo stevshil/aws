@@ -1,0 +1,8 @@
+#!/bin/bash
+
+for region in $(cat regions | awk -F',' '{print $1}')
+do
+	name=$(grep $region regions | awk -F',' {'print $2}')
+	echo "AMIs in $name"
+	aws rds describe-db-instances --region $region | jq '.DBInstances[] | [ "Class: "+.DBInstanceClass,"Engine: "+.Engine,"Size: "+(.AllocatedStorage|tostring),.DBInstanceIdentifier,.InstanceCreateTime]'
+done

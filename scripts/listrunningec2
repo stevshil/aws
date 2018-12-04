@@ -1,0 +1,8 @@
+#!/bin/bash
+
+for region in $(cat regions | awk -F',' '{print $1}')
+do
+	name=$(grep $region regions | awk -F',' {'print $2}')
+	echo "AMIs in $name"
+	aws ec2 describe-instances --region $region| jq '.Reservations[].Instances[] | select(.State.Name == "running") | [ "Instance ID: "+.InstanceId,"Image ID: "+.ImageId,.Tags[].Key+": "+.Tags[].Value ] '
+done

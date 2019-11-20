@@ -1,0 +1,27 @@
+#!/bin/bash
+
+region=$1
+shift
+
+if ! echo $region | grep '-' >/dev/null 2>&1
+then
+	exit 1
+fi
+
+echo "$*"
+ids=$(echo "$*" | sed -e "s/id //" -e "s/groups .*//")
+groups=$(echo $* | sed -e "s/id .*groups//")
+#for group in $(echo $* | sed -e "s/id .*groups//")
+#do
+	#groupname=$(echo $group | awk -F, '{sub($1, "\"&\""); print}')
+	#groups="${groups} ${groupname}"
+#done
+
+for id in $ids
+do
+	echo "Doing $id = $groups"
+	if aws ec2 modify-instance-attribute --instance-id $id --groups $groups --region $region 
+	then
+		echo -e "\tSuccessfully added SecGroups"
+	fi
+done

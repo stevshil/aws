@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# RUN as
+# ./cmd ID1 ID2 ID3 ID4 ....
+if (( $# < 1 ))
+then
+	echo -e "\nSYNTAX: $0 instanceID1 instanceID2 ...." 1>&2
+	echo -e ""
+	echo "To automate this command set the following environment variables;" 1>&2
+	echo -e "\tNAME\n\tENDDATE\n\tREGION" 1>&2
+	exit 1
+fi
+
+if [[ -z $NAME ]]
+then
+	echo -n "Please enter the value for Name tag: "
+	read NAME
+fi
+if [[ -z $ENDDATE ]]
+then
+	echo -n "Please enter the end date of the item(s) - YYYYMMDD: "
+	read ENDDATE
+fi
+
+if [[ -z $REGION ]]
+then
+	echo -n "Which region are these items in: "
+	read REGION
+fi
+
+STARTDATE="$(date +"%Y%m%d)"
+IDS="$@"
+
+if echo "$IDS" | grep -v '-' >/dev/null 2>&1
+then
+	echo "Please enter a valid AWS object ID, e.g. i-026f2d8f007c66911 or eipalloc-09adae57483b3192f, etc" 1>&2
+	exit 1
+fi
+
+for id in $IDS
+do
+	echo "ID = $id"
+	aws ec2 create-tags --resources $id --tags Key=Name,Value="${NAME}" \
+		Key=Project,Value="ALAcademy$(date +%Y)" Key=EndDate,Value="${ENDDATE}" \
+		Key=StartDate,Value="${STARTDATE}" Key=Owner,Value="${YOURNAME}" \
+		Key=Info,Value="${INFO}" --region=${REGION}
+done

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if (( $# < 1 ))
+then
+	echo "Syntax is: $0 <region>" 1>&2
+	exit 1
+fi
+
+# Gets all info about stopped containers
+for instance in $(aws ec2 describe-instances --region $1 | jq -r '.Reservations[].Instances[] | select(.State.Name == "running") | .InstanceId')
+do
+	echo "Stopping $instance"
+	if aws ec2 stop-instances --instance-id $instance --region $1
+	then
+		echo "Shutting down instance $instance"
+	fi
+done

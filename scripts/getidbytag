@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# set -xv
+TagName=$1
+State=$2
+
+aws2 ec2 describe-instances | 
+jq -r ".Reservations[].Instances[] | 
+try select((.Tags[] | select(.Key==\"Name\")|.Value) | match(\"$TagName\")) 
+| select(.State.Name==\"$State\") 
+| .InstanceId"
+

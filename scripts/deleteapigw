@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if (( $# < 2 ))
+then
+	echo "SYNTAX: $0 <region> <id>" 1>&2
+	exit 1
+fi
+
+id=$2
+region=$1
+
+aws apigateway delete-rest-api --region $region --rest-api-id $id

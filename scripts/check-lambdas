@@ -21,7 +21,7 @@ sa-east-1"
 
 for region in $regions
 do
-	functions=$(aws lambda list-functions --region $region| jq -r '.Functions[].FunctionName')
+	functions=$(aws lambda list-functions --region $region 2>/dev/null | jq -r '.Functions[].FunctionName' 2>/dev/null)
 	#if (( $(echo "$functions" | wc -c) > 0 ))
 	if echo "$functions" | grep -v '^$' >/dev/null 2>&1
         then

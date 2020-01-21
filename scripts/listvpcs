@@ -3,6 +3,6 @@
 for region in $(cat regions | awk -F',' '{print $1}')
 do
 	name=$(grep $region regions | awk -F',' {'print $2}')
-	echo "AMIs in $name"
+	echo "VPCs in $name"
 	aws ec2 describe-vpcs --region $region | jq '.Vpcs[] | [ "VPC ID: "+.VpcId, .Tags[].Key+": "+.Tags[].Value]' 2>/dev/null
 done

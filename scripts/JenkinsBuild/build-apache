@@ -1,0 +1,54 @@
+#!/bin/bash
+
+echo "Running buildVM"
+data=$(./buildVM SteveApache add-apache eu-west-1)
+ID=$(echo "$data" | jq -r '.Instances[] | .InstanceId')
+
+echo "Setting IPAddr and InstanceID"
+
+if hostname | grep '^ip'
+then
+	IPAddr=$(echo "$data" | jq -r '.Instances[] | .PrivateIpAddress')
+else
+	while ! aws ec2 describe-instances --instance-ids $ID --region eu-west-1 | jq -r '.Reservations[].Instances[] | .PublicIpAddress'
+	do
+		sleep 10
+	done
+	IPAddr=$(aws ec2 describe-instances --instance-ids $ID --region eu-west-1 | jq -r '.Reservations[].Instances[] | .PublicIpAddress')
+fi
+
+echo "DEBUG IP: $IPAddr"
+echo "DEBUG ID: $ID"
+
+echo "Waiting for VM to start"
+counter=0
+while ! curl -s --connect-timeout 5 http://$IPAddr
+do
+	echo "DEBUG counter: $counter"
+	sleep 30
+	((counter=counter + 1))
+	if (( counter == 6 ))
+	then
+		exit 1
+	fi
+done
+
+echo "Check if we get our web page"
+if curl -s --connect-timeout 5 http://$IPAddr | grep "Hello STEVE"
+then
+	echo "OK"
+	exitcode=0
+else
+	echo "NOK"
+	exitcode=1
+fi
+
+echo "Cleaning up. Terminating instance"
+aws ec2 terminate-instances --instance-ids $ID --region eu-west-1
+
+if (( exitcode > 0 ))
+then
+	exit 1
+else
+	exit 0
+fi

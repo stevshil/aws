@@ -22,7 +22,7 @@ arn=$(aws iam list-instance-profiles |jq -r '.InstanceProfiles[] | select (.Inst
 # Create VM and assign role
 instance=$(aws ec2 run-instances --count 1 --image-id ami-026dae6ae692e19e1 \
     --instance-type t2.micro --region eu-west-1 \
-    --key-name steveshillingacademyie --security-groups academySG \
+    --key-name steveshillingacademyie --security-groups AcademySG \
     --tag-specifications '[{"ResourceType": "instance","Tags": [{"Key": "Name", "Value": "SteveVM"}]}]' )
 
 # Instance ID

@@ -8,13 +8,11 @@ fi
 
 ownerid=$1
 
-select regions in $(cat regions | awk -F',' '{print $1}')
+select regions in $(aws ec2 describe-regions | jq -r '.Regions[] | .RegionName')
 do
 	region=$regions
 	break
 done
-
-name=$(grep $region regions | awk -F',' {'print $2}')
 
 echo "Getting snapshot list"
 snapshots=$(aws ec2 describe-snapshots --owner ${ownerid} --region $region | jq '.Snapshots[] | .SnapshotId' | sed 's/"//g')
@@ -25,7 +23,7 @@ allEC2=$(aws ec2 describe-instances --region $region | jq '.Reservations[].Insta
 echo "Getting AMI specific information"
 amis=$(aws ec2 describe-images --owner ${ownerid} --region $region | jq '.Images[] | .ImageId+" - "+.BlockDeviceMappings[].Ebs.SnapshotId' | sed 's/"//g')
 
-echo "Region: $name"
+echo "Region: $region"
 
 foundcount=0
 totalcount=0

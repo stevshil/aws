@@ -1,8 +1,16 @@
 #!/bin/bash
 
-for region in $(cat regions | awk -F',' '{print $1}')
-do
-	name=$(grep $region regions | awk -F',' {'print $2}')
+if (( $# > 0 ))
+then
+	region=$1
+	name=$region
 	echo "Running Instances in $name"
-	aws ec2 describe-instances --region $region| jq '.Reservations[].Instances[] | select(.State.Name == "running") | [ "Instance ID: "+.InstanceId,"Image ID: "+.ImageId,.Tags[].Key+": "+.Tags[].Value ] '
-done
+	aws ec2 describe-instances --region $region| jq -r '.Reservations[].Instances[] | select(.State.Name == "running") | [ "Instance ID: "+.InstanceId,"Image ID: "+.ImageId, .Tags[] | tostring | gsub("{|}|Key|Value|:|\"";"")] '
+else
+	for region in $(aws ec2 describe-regions | jq -r '.Regions[] | .RegionName')
+	do
+		name=$region
+		echo "Running Instances in $name"
+		aws ec2 describe-instances --region $region| jq -r '.Reservations[].Instances[] | select(.State.Name == "running") | [ "Instance ID: "+.InstanceId,"Image ID: "+.ImageId, .Tags[] | tostring | gsub("{|}|Key|Value|:|\"";"")] '
+	done
+fi

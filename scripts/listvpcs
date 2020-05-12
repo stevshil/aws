@@ -1,8 +1,7 @@
 #!/bin/bash
 
-for region in $(cat regions | awk -F',' '{print $1}')
+for region in $(aws ec2 describe-regions | jq -r '.Regions[] | .RegionName')
 do
-	name=$(grep $region regions | awk -F',' {'print $2}')
-	echo "VPCs in $name"
+	echo "VPCs in $region"
 	aws ec2 describe-vpcs --region $region | jq '.Vpcs[] | [ "VPC ID: "+.VpcId, .Tags[].Key+": "+.Tags[].Value]' 2>/dev/null
 done

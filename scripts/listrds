@@ -1,8 +1,7 @@
 #!/bin/bash
 
-for region in $(cat regions | awk -F',' '{print $1}')
+for region in $(aws ec2 describe-regions | jq -r '.Regions[] | .RegionName')
 do
-	name=$(grep $region regions | awk -F',' {'print $2}')
-	echo "RDS in $name"
+	echo "RDS in $region"
 	aws rds describe-db-instances --region $region | jq '.DBInstances[] | [ "Class: "+.DBInstanceClass,"Engine: "+.Engine,"Size: "+(.AllocatedStorage|tostring),.DBInstanceIdentifier,.InstanceCreateTime]'
 done

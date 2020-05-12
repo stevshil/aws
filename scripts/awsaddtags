@@ -7,7 +7,7 @@ then
 	echo -e "\nSYNTAX: $0 instanceID1 instanceID2 ...." 1>&2
 	echo -e ""
 	echo "To automate this command set the following environment variables;" 1>&2
-	echo -e "\tNAME\n\tENDDATE\n\tREGION" 1>&2
+	echo -e "\tNAME\n\tENDDATE\n\tREGION\n\tSTARTDATE\n\tYOURNAME\n\tINFO" 1>&2
 	exit 1
 fi
 
@@ -28,7 +28,7 @@ then
 	read REGION
 fi
 
-STARTDATE="$(date +"%Y%m%d)"
+STARTDATE="$(date +'%Y%m%d')"
 IDS="$@"
 
 if echo "$IDS" | grep -v '-' >/dev/null 2>&1

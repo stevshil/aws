@@ -1,0 +1,13 @@
+#!/bin/bash
+
+for region in $(aws ec2 describe-regions | jq -r '.Regions[] | .RegionName')
+do
+	echo "Keys in $region"
+	#aws kms list-keys --region $region | jq -r '.Keys[] | .KeyId' | sed 's/^/\t/'
+	keyids=$(aws kms list-keys --region $region | jq -r '.Keys[] | .KeyId')
+	for id in $keyids
+	do
+		aws kms describe-key --key-id $id --region $region 2>/dev/null | jq -r '.KeyMetadata | {"ID": .KeyId, "Date": .CreationDate,"Enabled": .Enabled,"Description": .Description}' 2>/dev/null
+		aws kms list-resource-tags --key-id $id --region $region | jq -r '.Tags[] | {"Tag": .TagValue}' 2>/dev/null
+	done
+done

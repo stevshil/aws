@@ -7,6 +7,7 @@
 # Addes a single job through the API
 
 # Plugin list
+# Use https://plugins.jenkins.io to find the actual name under ID:
 cat >/tmp/pluginlist <<_EOF_
 cloudbees-folder
 configuration-as-code
@@ -15,17 +16,23 @@ build-timeout
 credentials-binding
 timestamper
 ws-cleanup
+jaxb
+bouncycastle-api
+jdk-tool
+command-launcher
 workflow-aggregator
 github-branch-source
-pipeline-github-lib
-pipeline-stage-view
 git
 github
 git-parameter
-pipeline
+pipeline-stage-tags-metadata
+pipeline-model-declarative-agent
+pipeline-github-lib
+pipeline-stage-view
 pipeline-build-step
 pipeline-milestone-step
 pipeline-model-definition
+pipeline
 maven
 ssh-slaves
 matrix-auth
@@ -42,7 +49,7 @@ then
 	>/var/log/jenkins/jenkins.log
 fi
 
-yum -y install java wget
+yum -y install java wget git
 if [[ ! -d /etc/yum.repos.d/jenkins.repo ]]
 then
 	wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat/jenkins.repo

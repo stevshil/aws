@@ -1,0 +1,37 @@
+#!/bin/bash
+export AWS_DEFAULT_REGION=eu-west-1
+
+case $1 in
+  create)
+
+	sgdata=$(aws ec2 create-security-group --description "Steves Personal Security Group" --group-name stevePersonal --vpc-id vpc-4bb64132)
+
+	sgid=$(echo "$sgdata" | jq -r '.GroupId')
+	echo "Security Group ID: $sgid"
+	myip=$(curl -s 'https://api.ipify.org?format=json'| jq -r '.ip')
+
+	for port in 22 80 443 3306
+	do
+		if (( $port == 22 )) || (( $port == 3306 ))
+		then
+			useip="${myip}/32"
+		else
+			useip="0.0.0.0/0"
+		fi
+		aws ec2 authorize-security-group-ingress --group-id $sgid --protocol tcp --port $port --cidr $useip
+	done
+
+	sginfo=$(aws ec2 describe-security-groups --group-ids $sgid)
+	sgname=$(echo "$sginfo" | jq -r '.SecurityGroups[].GroupName')
+
+	echo "Security Group Name: $sgname"
+	;;
+  delete)
+	if (( $# < 2 ))
+	then
+		echo "SYNTAX: $0 delete <groupName>"
+		exit 1
+	fi
+	aws ec2 delete-security-group --group-name $2
+	;;
+esac

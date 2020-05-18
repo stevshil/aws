@@ -1,0 +1,38 @@
+#!/bin/bash
+
+export AWS_DEFAULT_REGION=eu-west-1
+
+if (( $# < 2 ))
+then
+	echo "SYNTAX: $0 <create|delete> <keyname>"
+	exit 1
+fi
+
+action=$1
+keyname=$2
+
+case $action in
+  create)
+	key=$(aws ec2 create-key-pair --key-name $keyname)
+	if (( $? == 0 ))
+	then
+		echo "Key $keyname created"
+		echo "SSH Private Key is:"
+		sshkey=$(echo "$key" | jq '.KeyMaterial')
+		echo "$sshkey" >${keyname}.pem
+	else
+		echo "Unable to create key $keyname"
+		exit 2
+	fi
+	;;
+  delete)
+	if aws ec2 delete-key-pair --key-name $keyname >/dev/null 2>&1
+	then
+		echo "Key $keyname deleted"
+		rm ${keyname}.pem
+	else
+		echo "Unable to delete key $keyname"
+		exit 2
+	fi
+	;;
+esac

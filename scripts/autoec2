@@ -1,0 +1,42 @@
+#!/bin/bash
+
+case $1 in
+  start)
+	if (( $# < 2 ))
+	then
+		echo "SYNTAX: $0 start <secGrpName>"
+		exit 1
+	fi
+	# Grab output into a variable
+	sgName=$2
+	vm=$(aws ec2 run-instances --region eu-west-1 --image-id ami-06ce3edf0cff21f07 --instance-type t2.micro --security-groups $sgName --key-name steveshillingacademyie)
+	vmid=$(echo "$vm" | jq -r '.Instances[].InstanceId')
+
+	until aws ec2 describe-instances --instance-ids $vmid --region eu-west-1 | jq -r '.Reservations[].Instances[].State | .Name' | grep -i running
+	do
+  		echo -n '.'
+  		sleep 15
+	done
+
+	vmdata=$(aws ec2 describe-instances --instance-ids $vmid --region eu-west-1)
+	# More variables about our VM
+	pubip=$(echo "$vmdata" | jq -r '.Reservations[].Instances[] | .PublicIpAddress')
+	privip=$(echo "$vmdata" | jq -r '.Reservations[].Instances[] | .PrivateIpAddress')
+	sshkey=$(echo "$vmdata" | jq -r '.Reservations[].Instances[] | .KeyName')
+
+	echo "VM $vmid is now running"
+	echo "VM Public IP is $pubip"
+	echo "VM Private IP is $privip"
+	echo "SSH Key used is $sshkey"
+	;;
+
+  kill)
+	if (( $# < 2 ))
+	then
+		echo "SYNTAX: $0 kill <instance-id>"
+		exit 1
+	fi
+	echo "Terminating $2"
+	aws ec2 terminate-instances --instance-ids $2 --region eu-west-1
+	;;
+esac

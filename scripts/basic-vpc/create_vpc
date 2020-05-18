@@ -1,0 +1,181 @@
+#!/bin/bash
+
+# Created by: Steve Shilling
+# Date: 24 Jan 2018
+# Create a VPC in AWS using CLI with Pub and Priv subnet and a NATGW
+
+region=eu-west-3
+
+case $region in
+  eu-west-2)
+    amiID=ami-5652ce39
+    ;;
+  eu-west-3)
+    amiID=ami-8ee056f3
+    ;;
+esac
+
+echo "Create the VPC"
+vpcData=$(aws ec2 create-vpc --cidr-block 10.1.0.0/16)
+vpcid=$(echo "$vpcData" | jq '.Vpc.VpcId' | sed 's/"//g')
+if [[ -z $vpcid ]]
+then
+  echo "VPC failed to create, check web console"
+  exit 1
+else
+  echo "VPC ID = $vpcid"
+fi
+aws ec2 create-tags --resources $vpcid --tags Key=Name,Value=SteveVPC
+
+echo "Create public subnet"
+pubsubData=$(aws ec2 create-subnet --vpc-id $vpcid --cidr-block=10.1.1.0/24)
+if [[ -z $pubsubData ]]
+then
+  echo "Public subnet failed, check web console"
+  exit 2
+fi
+echo "Create private subnet"
+pubSubId=$(echo "$pubsubData" | jq '.Subnet.SubnetId' | sed 's/"//g')
+echo "Public subnet ID = $pubSubId"
+aws ec2 create-tags --resources $pubSubId --tags Key=Name,Value=SteveVPC
+privsubData=$(aws ec2 create-subnet --vpc-id $vpcid --cidr-block=10.1.2.0/24)
+if [[ -z $privsubData ]]
+then
+  echo "Private subnet failed, check web console"
+  exit 3
+fi
+privSubId=$(echo "$privsubData" | jq '.Subnet.SubnetId' | sed 's/"//g')
+echo "Private Subnet ID = $privSubId"
+aws ec2 create-tags --resources $privSubId --tags Key=Name,Value=SteveVPC
+
+echo "Adding Internet Gateway"
+igwData=$(aws ec2 create-internet-gateway)
+if [[ -z $igwData ]]
+then
+  echo "Internet Gateway failed, check web console"
+  exit 4
+fi
+igwID=$(echo "$igwData" | jq '.InternetGateway.InternetGatewayId' | sed 's/"//g')
+echo "Inetnet GW ID = $igwID"
+aws ec2 create-tags --resources $igwID --tags Key=Name,Value=SteveVPC
+
+if ! aws ec2 attach-internet-gateway --vpc-id $vpcid --internet-gateway-id $igwID
+then
+  echo "IGW attach failed, check web console"
+  exit 5
+fi
+
+echo "Create public route table"
+rtData=$(aws ec2 create-route-table --vpc-id $vpcid)
+if [[ -z $rtData ]]
+then
+  echo "Route table failed, check web console"
+  exit 6
+fi
+rtbID=$(echo "$rtData" | jq '.RouteTable.RouteTableId' | sed 's/"//g')
+echo "Route Table ID = $rtbID"
+aws ec2 create-tags --resources $rtbID --tags Key=Name,Value=SteveVPC
+
+echo "Associating public IP to route table"
+if ! aws ec2 create-route --route-table-id $rtbID --destination-cidr-block 0.0.0.0/0 --gateway-id $igwID
+then
+  echo "Failed to create route for IGW"
+  exit 7
+fi
+
+echo "Associate public subnet to route table"
+if ! aws ec2 associate-route-table  --subnet-id $pubSubId --route-table-id $rtbID
+then
+  echo "Failed to associate Public Subnet to route table"
+  exit 8
+fi
+
+echo "Get public IP"
+pubIPData=$(aws ec2 allocate-address --domain vpc)
+allocID=$(echo "$pubIPData" | jq '.AllocationId' | sed 's/"//g')
+if [[ -z $allocID ]]
+then
+  echo "Failed to get a public IP address"
+  exit 11
+fi
+
+echo "Create NAT GW"
+natGWData=$(aws ec2 create-nat-gateway --allocation-id $allocID --subnet-id $pubSubId)
+natGWID=$(echo "$natGWData" | jq '.NatGateway.NatGatewayId' | sed 's/"//g')
+echo "Nat GW ID = $natGWID"
+echo "Waiting for NAT GW to be ready"
+until aws ec2 describe-nat-gateways --nat-gateway-id $natGWID | jq '.NatGateways[].State' | grep available >/dev/null 2>&1
+do
+  sleep 15
+  echo -n "."
+done
+echo ""
+
+echo "Create private route table"
+privrtData=$(aws ec2 create-route-table --vpc-id $vpcid)
+if [[ -z $privrtData ]]
+then
+  echo "Route table failed, check web console"
+  exit 6
+fi
+privrtbID=$(echo "$privrtData" | jq '.RouteTable.RouteTableId' | sed 's/"//g')
+echo "Private Route Table ID = $privrtbID"
+aws ec2 create-tags --resources $privrtbID --tags Key=Name,Value=SteveVPC
+
+echo "Associate private subnet to route table"
+if ! aws ec2 associate-route-table  --subnet-id $privSubId --route-table-id $privrtbID
+then
+  echo "Failed to associate Private Subnet to route table"
+  exit 9
+fi
+
+echo "Associating Private subnet to NAT"
+if ! aws ec2 create-route --route-table-id $privrtbID --destination-cidr-block 0.0.0.0/0 --nat-gateway-id $natGWID
+then
+  echo "Failed to create route for IGW"
+  exit 7
+fi
+
+echo "Map public IP on launch for public subnet"
+if ! aws ec2 modify-subnet-attribute --subnet-id $pubSubId --map-public-ip-on-launch
+then
+  echo "Failed to add attribute map on launch to public subnet"
+  exit 10
+fi
+
+echo "Create SG"
+sgData=$(aws ec2 create-security-group --description "Steves SG" --group-name SteveSG --vpc-id $vpcid)
+sgID=$(echo "$sgData" | jq '.GroupId' | sed 's/"//g')
+echo "SG ID = $sgID"
+aws ec2 authorize-security-group-ingress --group-id $sgID --protocol tcp --port 22 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $sgID --protocol tcp --port 80 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $sgID --protocol all --port 1-65535 --cidr 10.1.0.0/16
+
+# Create instances
+InstanceID=$(aws ec2 run-instances --security-group-ids $sgID \
+      --key-name steveshilling --subnet-id $pubSubId \
+      --instance-type t2.micro --image-id $amiID \
+      --associate-public-ip-address \
+      --user-data file://install-apache.sh | jq '.Instances[] | .InstanceId' | sed 's/"//g')
+echo "Your Public VM is $InstanceID"
+until aws ec2 describe-instances --instance-ids $InstanceID 2>/dev/null | jq '.Reservations[].Instances[] | .State.Name' 2>/dev/null | grep running >/dev/null 2>&1
+do
+  sleep 15
+  echo -n "."
+done
+echo ""
+aws ec2 create-tags --resources $InstanceID --tags Key=Name,Value=SteveVPC
+
+InstanceID=$(aws ec2 run-instances --security-group-ids $sgID \
+      --key-name steveshilling --subnet-id $privSubId \
+      --instance-type t2.micro --image-id $amiID \
+      --user-data file://install-apache.sh | jq '.Instances[] | .InstanceId' | sed 's/"//g')
+
+echo "Your Private VM is $InstanceID"
+until aws ec2 describe-instances --instance-ids $InstanceID 2>/dev/null | jq '.Reservations[].Instances[] | .State.Name' 2>/dev/null | grep running >/dev/null 2>&1
+do
+  sleep 15
+  echo -n "."
+done
+aws ec2 create-tags --resources $InstanceID --tags Key=Name,Value=SteveVPC
+echo ""

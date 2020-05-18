@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Created by: Steve Shilling
+# Date: 25th Jan 2018
+
+# Create an S3 bucket that hosts a static web site
+
+if (( $# < 1 ))
+then
+	echo "Please enter a bucket name"
+	exit 1
+fi
+
+bucketname=$1
+region=$(aws configure list | grep region | awk '{print $2}')
+
+if aws s3 ls s3://${bucketname} >/dev/null 2>&1
+then
+	echo "${bucketname} already exists"
+	exit 0
+fi
+
+if ! aws s3 mb s3://${bucketname}
+then
+	echo "Failed to create bucket ${bucketname}" 1>&2
+	exit 1
+fi
+
+if ! aws s3 website s3://${bucketname} --index-document index.html --error-document error.html
+then
+	echo "Failed to make website from bucket" 1>&2
+	exit 2
+fi
+
+if ! aws s3 cp --acl public-read files/index.html s3://${bucketname}/index.html
+then
+	echo "Failed to copy index.html to bucket" 1>&2
+	exit 3
+fi
+
+if ! aws s3 cp --acl public-read files/error.html s3://${bucketname}/error.html
+then
+	echo "Failed to copy error.html to bucket" 1>&2
+	exit 4
+fi
+
+echo "Your URL is;"
+echo "http://${bucketname}.s3-website.${region}.amazonaws.com"

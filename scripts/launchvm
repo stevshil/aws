@@ -1,0 +1,19 @@
+#!/bin/bash
+
+instdata=$(aws ec2 run-instances --image-id ami-06ce3edf0cff21f07 --count 1 \
+--instance-type t2.micro --key-name steveshillingacademyie \
+--security-groups stevesFirewall --region eu-west-1)
+
+instid=$(echo "$instdata" | jq -r '.Instances[].InstanceId')
+
+instrealdata=$(aws ec2 describe-instances --instance-id $instid --region eu-west-1)
+
+ipadd=$(echo "$instrealdata" | jq -r '.Reservations[].Instances[].PublicIpAddress')
+
+until ssh -qo StrictHostKeyChecking=no -i ~/.aws/automationlogic/steveshillingacademyie.pem ec2-user@$ipadd exit
+do
+	echo -n "."
+	sleep 15
+done
+
+echo -e "\nVM ready at IP $ipadd and instance ID $instid"

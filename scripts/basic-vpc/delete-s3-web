@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Created by: Steve Shilling
+# Date: 25th Jan 2018
+
+# Deletes your created web site
+
+if (( $# < 1 ))
+then
+	echo "SYNTAX: $0 <bucketname>"
+	exit 1
+fi
+
+bucketname=$1
+
+if ! aws s3 ls s3://${bucketname} >/dev/null 2>&1
+then
+	echo "Bucket ${bucketname} does not exist or you do not have access" 1>&2
+	exit 2
+fi
+
+if aws s3 rb s3://${bucketname} --force
+then
+	# Check bucket has really gone
+	if ! aws s3 ls s3://${bucketname} >/dev/null 2>&1
+	then
+		echo "${bucketname} has been deleted"
+		exit 0
+	else
+		echo "${bucketname} has NOT been deleted"
+		exit 10
+	fi
+else
+	echo "Unable to delete ${bucketname}"
+	exit 3
+fi

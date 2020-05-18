@@ -1,0 +1,4 @@
+#!/bin/bash
+
+aws ec2 create-image --description "Steves Jenkins Image" \
+--instance-id $1 --name "JenkinsBase2018"

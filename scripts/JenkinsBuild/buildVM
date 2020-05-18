@@ -1,7 +1,12 @@
 #!/bin/bash
 
+if (( $# < 3 ))
+then
+	echo "SYNTAX: $0 <TAG> <userdata> <REGION>"
+	exit 1
+fi
 TAG=$1
 provfile=$2
 REGION=$3
 
-aws2 ec2 run-instances --image-id ami-0a08e141df9c285a5 --count 1 --instance-type t2.micro --key-name steveshilling --security-group-ids sg-0c2c9cd5b7d66207d --subnet-id subnet-0208595b --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$TAG}]" "ResourceType=volume,Tags=[{Key=Name,Value=$TAG}]" --user-data file://$provfile --region $REGION
+aws ec2 run-instances --image-id ami-06ce3edf0cff21f07 --count 1 --instance-type t2.micro --key-name steveshillingacademyie --security-groups AcademySG --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$TAG}]" "ResourceType=volume,Tags=[{Key=Name,Value=$TAG}]" --user-data file://$provfile --region $REGION

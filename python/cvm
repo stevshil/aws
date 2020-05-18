@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+
+import boto3
+import sys
+import sshkey
+import secgrp
+import vm
+import waitforvm
+import createimg
+import cleanup
+
+if len(sys.argv) < 3:
+    print("SYNTAX: "+sys.argv[0]+" <region> <vpcid> <provisionFile>")
+    sys.exit(1)
+
+# Set variables from command line arguments
+region=sys.argv[1]
+vpcid=sys.argv[2]
+provfile=sys.argv[3]
+keyname="stevesNewPythonKey"
+
+# Set the 2 types of object
+resource=boto3.resource('ec2', region_name=region)
+client=boto3.client('ec2', region_name=region)
+
+# Create SSH KEY
+sshkey=sshkey.createkey(client,keyname,"Another auto generated key by Steve")
+# If key exists get key detail
+try:
+    sshkey=sshkey['KeyPairs'][0]
+except:
+    pass
+
+# Create security group
+sgdata=secgrp.createsg(client,"PSteve",vpcid)
+print("Security Group ID: "+sgdata['SecurityGroups'][0]['GroupId'])
+sgname=sgdata['SecurityGroups'][0]['GroupName']
+
+# Create VM
+id=vm.createvm(resource,'StevePVM','Steve Shilling',sshkey, sgname, provfile)
+
+# Wait for VM to complete
+createami=waitforvm.waitvm(client,id)
+print("CREATEAMI: "+str(createami))
+createimg.createimg(client,id,'Steves Automated Python VM',"PSteveVM",createami)
+
+# Clean up
+cleanup.clean(client,id,sgdata,keyname)

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+select regions in $(awk -F, '{print $2}' regions | tail -n +3)
+do
+	region=$regions
+	break
+done
+
+if ! echo $region | grep '-' >/dev/null 2>&1
+then
+	exit 1
+fi
+
+aws ec2 describe-security-groups --region $region | jq '.SecurityGroups[] | {GroupName,GroupId}'

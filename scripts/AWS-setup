@@ -1,0 +1,133 @@
+#!/bin/bash
+# Before running this script you must log on to the box and remove the
+# Defaults requiretty
+# From the /etc/sudoers file
+
+# Also need to add to sec groups 55801, 55901, 56101
+# itrs, itrs1, itrs2
+
+# Global variables
+KEY="$HOME/.ssh/CitiKey.pem"
+AWSUSER="ec2-user"
+users="bduffy grads psgrads nick steve"
+sudousers="bduffy,psgrads,nick,steve"
+ITRS=ec2-54-171-64-65.eu-west-1.compute.amazonaws.com
+GIT=54.171.102.210
+
+# Backup to terminate if running too long, and ITRS restart can stop it from exiting
+export curProc=$$
+(sleep 90; kill $curProc) &
+
+export KEY AWSUSER users sudousers ITRS
+
+ssh -i $KEY $AWSUSER@$ITRS <<_END_
+echo "Variables: $users       $sudousers"
+sudo sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+_END_
+
+for username in $users
+do
+  export username
+  ssh -i $KEY $AWSUSER@$ITRS <<_END_
+  echo "useradd -m $username"
+  sudo useradd -m $username
+  if [ $? -eq 0 ]
+  then
+    (sleep 2; echo neueda; sleep 2; echo neueda) | sudo passwd $username
+  fi
+_END_
+done
+
+ssh -i $KEY $AWSUSER@$ITRS <<_END_
+# Add users to sudo
+if ! grep 'wheel' /etc/group | grep "$sudousers"
+then
+  sudo sed -i "s/^\(wheel:.*\)/\1,$sudousers/" /etc/group
+fi
+
+# Set the ITRS license key
+echo "D.AB.7B.FA.6A.EB.8A.A2.68
+S.90.A0.01.11.57.9D" >/home/ec2-user/gateway2.lic.tmp
+
+rm /home/ec2-user/trainingclass/student1/Gateway2-US/gateway2.lic.tmp
+rm /home/ec2-user/trainingclass/student2/Gateway2-US/gateway2.lic.tmp
+rm /home/ec2-user/trainingclass/student3/Gateway2-US/gateway2.lic.tmp
+ln -s /home/ec2-user/gateway2.lic.tmp /home/ec2-user/trainingclass/student1/Gateway2-US/gateway2.lic.tmp
+ln -s /home/ec2-user/gateway2.lic.tmp /home/ec2-user/trainingclass/student2/Gateway2-US/gateway2.lic.tmp
+ln -s /home/ec2-user/gateway2.lic.tmp /home/ec2-user/trainingclass/student3/Gateway2-US/gateway2.lic.tmp
+
+# Restart ssh and ITRS
+sudo service sshd restart
+sudo service itrs stop
+sudo service itrs2 stop
+sudo service itrs3 stop
+echo "Starting Gateway 1"
+sudo service itrs start
+echo "Starting Gateway 2"
+sudo service itrs2 start
+echo "Starting Gateway 3"
+sudo service itrs3 start
+_END_
+
+echo "End of setup"
+
+
+# Gitlab server
+# root/neueda2016 for the GitLab UI
+# CitiKey.pem for log on with ec2-user
+ssh -i $KEY $AWSUSER@$GIT <<_END_
+sudo yum -y install curl policycoreutils openssh-server openssh-clients
+curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh | sudo bash
+sudo yum -y install gitlab-ce
+sudo gitlab-ctl reconfigure
+sudo yum -y install glibc.i686 libstdc++44.i686 libzip.i686
+_END_
+# Also need to change name in the config since IP and host change if rebooted
+# sudo vi /opt/gitlab/embedded/service/gitlab-rails/config/gitlab.yml
+	# Ensure gitlab: host: needs to be the IP
+# sudo vi /var/opt/gitlab/gitlab-shell/config.yml
+	# gitlab_url:
+# sudo vi /opt/gitlab/embedded/service/gitlab-shell/config.yml
+	# gitlab_url:
+# sudo vi /etc/gitlab/gitlab.rb
+	# external_url 'http://....'
+
+# TeamCity server
+# CitiKey.pem for log on with ec2-user
+# Admin account: root/neueda2016
+# Set to run on port 8080
+#sudo yum -y install glibc.i686 libstdc++44.i686 libzip.i686
+# Change the IP address in /opt/TeamCity/BuildServer/config/main-config.xml
+
+# Set Java to 1.8
+# sudo alternatives --config java
+
+# Netprobe script
+cat >/etc/init.d/netprobe <<_END_
+#!/bin/bash
+
+# chkconfig: 35 99 99
+# description: Netprobe script
+
+case \$1 in
+	'start')
+		cd /opt/itrs/NetProbe
+		./start_netprobe
+		;;
+	'stop')
+		pkill netprobe.Linux
+		;;
+	'restart')
+		pkill netprobe.Linux
+		cd /opt/itrs/NetProbe
+		./start_netprobe
+		;;
+	'status')
+		ps -ef | grep netprobe.Linux | grep -v grep
+		;;
+esac
+_END_
+
+# Wildfly MySQL database
+# user root, password neueda
+# Need to enable wheel in /etc/sudoers

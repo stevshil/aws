@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# RUN as
+# ./cmd ID1 ID2 ID3 ID4 ....
+
+IDS="$@"
+
+if echo "$IDS" | grep -v '-' >/dev/null 2>&1
+then
+	echo "Please enter a valid AWS object ID, e.g. i-026f2d8f007c66911 or eipalloc-09adae57483b3192f, etc" 1>&2
+	exit 1
+fi
+
+for id in $IDS
+do
+	echo "ID = $id"
+	aws ec2 create-tags --resources $id --tags Key=customer,Value=neueda Key=customer_program,Value="server" Key=end_date,Value="2019-10-04" Key=start_date,Value="2019-07-01" --region=eu-west-1
+done

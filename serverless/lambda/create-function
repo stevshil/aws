@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if (( $# < 3 ))
+then
+	echo "SYNTAX: $0 <function_name> <handler_name> <python_version>"
+	exit 1
+fi
+
+module_name=$(ls *.py | sed 's/\.py$//')
+
+aws lambda create-function --function-name $1 --runtime python2.7 --role arn:aws:iam::109964479621:role/lambda_basic_execution --handler ${module_name}.$2 --description 'Example flask lambda' --tags Name=SteveLambda --zip-file fileb://$1.zip

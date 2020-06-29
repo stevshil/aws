@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# https://docs.aws.amazon.com/apigateway/latest/developerguide/create-api-using-awscli.html
+
+apiid=$(aws apigateway create-rest-api --name "Steves Lambda" \
+--description "Steve's example Lambda" | jq -r '.id')
+
+parentid=$(aws apigateway get-resources --rest-api-id ${apiid} | 
+jq -r '.items[].id')
+
+aws apigateway create-resource --rest-api-id ${apiid} \
+--parent-id ${parentid} --path-part steve
+
+aws apigateway put-method --rest-api-id ${apiid} \
+       --resource-id ${parentid} \
+       --http-method GET \
+       --authorization-type "NONE" \
+
+aws apigateway put-method --rest-api-id ${apiid} \
+       --resource-id ${parentid} --http-method GET \
+       --authorization-type "NONE" \
+       --request-parameters method.request.path.petId=true

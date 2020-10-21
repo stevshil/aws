@@ -1,0 +1,76 @@
+#!/bin/bash
+
+if [[ -z $AWS_DEFAULT_REGION ]]
+then
+	echo -n "Use eu-west-1? (y/n): "
+	read response
+
+	if [[ $response == y* ]]
+	then
+		AWS_DEFAULT_REGION=eu-west-1
+	else
+		echo "Type region: "
+		read AWS_DEFAULT_REGION
+	fi
+fi
+
+export AWS_DEFAULT_REGION
+
+if (( $# < 2 ))
+then
+	echo "SYNTAX: $0 <sshkeyname> <subnetID>" 1>&2
+	exit 1
+fi
+
+if [[ -z $HOSTEDZONE ]]
+then
+	echo -n "Please enter DNS Hosted Zone ID: "
+	read HOSTEDZONE
+fi
+
+myvm=$(aws ec2 run-instances --image-id ami-0bb3fad3c0286ebd5 --count 1 --instance-type t2.micro --key-name $1 --security-group-ids sg-01f897dc42d10c7de --subnet-id $2 --user-data file://mysql.sh)
+
+id=$(echo "$myvm" | jq -r '.Instances[].InstanceId')
+echo "Instance ID = $id"
+
+if ! aws ec2 create-tags --resources $id --tags Key=Name,Value=ALAcademyMySQL >/dev/null 2>&1
+then
+	echo "Failed to tag instance!"
+	exit 1
+fi
+
+dnsname=""
+while [[ -z $dnsname ]]
+do
+	instancedetail=$(aws ec2 describe-instances --instance-ids $id)
+	dnsname=$(echo "$instancedetail" | jq -r '.Reservations[].Instances[].PublicDnsName')
+	sleep 5
+done
+
+pubipdata=$(aws ec2 allocate-address --domain vpc)
+allocid=$(echo "$pubipdata" | jq -r '.AllocationId')
+allocid=$(echo "$pubipdata" | jq -r '.PublicIp')
+
+if ! aws ec2 associate-address --allocation-id $allocid --instance-id $id
+then
+	echo "Failed to associate EIP $allocid to Instance $id"
+fi
+
+cat >mysql.json <<_END_
+{
+            "Comment": "CREATE MySQL DNS entry",
+            "Changes": [{
+            "Action": "CREATE",
+                        "ResourceRecordSet": {
+                                    "Name": "mysql.academy.grads.al-labs.co.uk",
+                                    "Type": "A",
+                                    "TTL": 60,
+                                 "ResourceRecords": [{ "Value": "$PublicIp"}]
+}}]
+}
+_END_
+
+aws route53 change-resource-record-sets --hosted-zone-id $HOSTEDZONE --change-batch file://mysql.json
+rm mysql.json
+
+echo "Instance provisioned"
